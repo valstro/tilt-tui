@@ -130,11 +130,17 @@ export function Logs() {
   return (
     <box
       flexDirection="column"
-      backgroundColor={theme.backgroundPane}
+      backgroundColor={theme.contentPane}
       flexGrow={1}
+      margin={1}
+      marginLeft={0}
+      paddingLeft={isFocused() ? 0 : 1}
+      border={isFocused() ? ["left"] : false}
+      borderColor={theme.borderActive}
+      borderStyle="heavy"
     >
       {/* Title - fixed */}
-      <box paddingLeft={1} paddingRight={1} flexDirection="row" flexShrink={0}>
+      <box padding={1} flexDirection="row" flexShrink={0}>
         <text fg={theme.primary} attributes={1} flexShrink={0}>
           Logs: {state.selectedResource ?? ""}
         </text>

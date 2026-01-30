@@ -1,10 +1,10 @@
 // Tree component - resource list with grouping
 
-import { createSignal, createMemo, For, Show } from "solid-js"
-import { createStore } from "solid-js/store"
-import { useKeyboard } from "@opentui/solid"
-import { useTilt } from "../context/tilt"
-import { useFocus } from "../context/focus"
+import { createSignal, createMemo, For, Show } from "solid-js";
+import { createStore } from "solid-js/store";
+import { useKeyboard } from "@opentui/solid";
+import { useTilt } from "../context/tilt";
+import { useFocus } from "../context/focus";
 import {
   defaultTheme,
   type Theme,
@@ -14,24 +14,24 @@ import {
   buildStatusColor,
   formatRelativeTime,
   formatBuildDuration,
-} from "../theme/theme"
-import type { Resource } from "../tilt/types"
+} from "../theme/theme";
+import type { Resource } from "../tilt/types";
 
 interface TreeNode {
-  type: "group" | "resource"
-  groupName?: string
-  resource?: Resource
-  expanded?: boolean
-  childCount?: number
-  depth: number
+  type: "group" | "resource";
+  groupName?: string;
+  resource?: Resource;
+  expanded?: boolean;
+  childCount?: number;
+  depth: number;
 }
 
 // Group resources by labels
 function getGroupKey(r: Resource): string {
-  if (!r.raw) return "ungrouped"
+  if (!r.raw) return "ungrouped";
 
-  const labels = r.raw.metadata.labels ?? {}
-  if (Object.keys(labels).length === 0) return "ungrouped"
+  const labels = r.raw.metadata.labels ?? {};
+  if (Object.keys(labels).length === 0) return "ungrouped";
 
   // Priority keys for grouping
   const priorityKeys = [
@@ -41,49 +41,49 @@ function getGroupKey(r: Resource): string {
     "component",
     "service",
     "tilt.dev/resource",
-  ]
+  ];
 
   for (const key of priorityKeys) {
-    if (labels[key]) return labels[key]
+    if (labels[key]) return labels[key];
   }
 
   // Fall back to first label value
   for (const val of Object.values(labels)) {
-    if (val) return val
+    if (val) return val;
   }
 
-  return "ungrouped"
+  return "ungrouped";
 }
 
 function buildTreeNodes(
   resources: Resource[],
-  expandedGroups: Record<string, boolean>
+  expandedGroups: Record<string, boolean>,
 ): TreeNode[] {
-  const nodes: TreeNode[] = []
-  const grouped = new Map<string, number[]>()
-  const groupOrder: string[] = []
+  const nodes: TreeNode[] = [];
+  const grouped = new Map<string, number[]>();
+  const groupOrder: string[] = [];
 
   // Group resources
   resources.forEach((r, i) => {
-    const key = getGroupKey(r)
+    const key = getGroupKey(r);
     if (!grouped.has(key)) {
-      groupOrder.push(key)
-      grouped.set(key, [])
+      groupOrder.push(key);
+      grouped.set(key, []);
     }
-    grouped.get(key)!.push(i)
-  })
+    grouped.get(key)!.push(i);
+  });
 
   // Sort groups (ungrouped at end)
   groupOrder.sort((a, b) => {
-    if (a === "ungrouped") return 1
-    if (b === "ungrouped") return -1
-    return a.localeCompare(b)
-  })
+    if (a === "ungrouped") return 1;
+    if (b === "ungrouped") return -1;
+    return a.localeCompare(b);
+  });
 
   // Build nodes
   for (const groupKey of groupOrder) {
-    const indices = grouped.get(groupKey)!
-    const expanded = expandedGroups[groupKey] ?? true
+    const indices = grouped.get(groupKey)!;
+    const expanded = expandedGroups[groupKey] ?? true;
 
     nodes.push({
       type: "group",
@@ -91,7 +91,7 @@ function buildTreeNodes(
       expanded,
       childCount: indices.length,
       depth: 0,
-    })
+    });
 
     if (expanded) {
       for (const idx of indices) {
@@ -99,76 +99,85 @@ function buildTreeNodes(
           type: "resource",
           resource: resources[idx],
           depth: 1,
-        })
+        });
       }
     }
   }
 
-  return nodes
+  return nodes;
 }
 
 export function Tree() {
-  const { state, selectResource, triggerResource } = useTilt()
-  const { state: focusState } = useFocus()
-  const theme = defaultTheme
+  const { state, selectResource, triggerResource } = useTilt();
+  const { state: focusState } = useFocus();
+  const theme = defaultTheme;
 
-  const [cursor, setCursor] = createSignal(0)
-  const [expandedGroups, setExpandedGroups] = createStore<Record<string, boolean>>({})
+  const [cursor, setCursor] = createSignal(0);
+  const [expandedGroups, setExpandedGroups] = createStore<
+    Record<string, boolean>
+  >({});
 
-  const nodes = createMemo(() => buildTreeNodes(state.resources, expandedGroups))
+  const nodes = createMemo(() =>
+    buildTreeNodes(state.resources, expandedGroups),
+  );
 
-  const isFocused = createMemo(() => focusState.activePane === "tree")
+  const isFocused = createMemo(() => focusState.activePane === "tree");
 
   // Keyboard handling
   useKeyboard((key) => {
-    if (!isFocused()) return
+    if (!isFocused()) return;
 
     switch (key.name) {
       case "j":
       case "down":
-        setCursor((c) => Math.min(c + 1, nodes().length - 1))
-        break
+        setCursor((c) => Math.min(c + 1, nodes().length - 1));
+        break;
       case "k":
       case "up":
-        setCursor((c) => Math.max(c - 1, 0))
-        break
+        setCursor((c) => Math.max(c - 1, 0));
+        break;
       case "g":
         if (key.shift) {
           // Shift+g (G) - go to end
-          setCursor(nodes().length - 1)
+          setCursor(nodes().length - 1);
         } else {
           // g - go to start
-          setCursor(0)
+          setCursor(0);
         }
-        break
+        break;
       case "space":
       case "return":
-        const node = nodes()[cursor()]
+        const node = nodes()[cursor()];
         if (node?.type === "group" && node.groupName) {
-          setExpandedGroups(node.groupName, !node.expanded)
+          setExpandedGroups(node.groupName, !node.expanded);
         } else if (node?.type === "resource" && node.resource) {
-          selectResource(node.resource.name)
+          selectResource(node.resource.name);
         }
-        break
+        break;
       case "r":
-        const currentNode = nodes()[cursor()]
+        const currentNode = nodes()[cursor()];
         if (currentNode?.type === "resource" && currentNode.resource) {
-          triggerResource(currentNode.resource.name)
+          triggerResource(currentNode.resource.name);
         }
-        break
+        break;
     }
-  })
+  });
 
   return (
     <box
       flexDirection="column"
-      backgroundColor={theme.backgroundPane}
+      backgroundColor={theme.contentPane}
       flexGrow={0}
       flexShrink={0}
+      margin={1}
       width={35}
+      paddingLeft={isFocused() ? 0 : 1}
+      border={isFocused() ? ["left"] : false}
+      borderColor={theme.borderActive}
+      borderStyle="heavy"
     >
       {/* Title - fixed */}
-      <box paddingLeft={1} paddingRight={1} flexShrink={0}>
+      <box margin={1} marginLeft={0} flexShrink={0}>
         <text fg={theme.primary} attributes={1}>
           Resources ({state.resources.length})
         </text>
@@ -178,7 +187,9 @@ export function Tree() {
       <scrollbox flexGrow={1} stickyScroll={false}>
         <For each={nodes()}>
           {(node, index) => {
-            const isSelected = createMemo(() => index() === cursor() && isFocused())
+            const isSelected = createMemo(
+              () => index() === cursor() && isFocused(),
+            );
 
             if (node.type === "group") {
               return (
@@ -187,7 +198,7 @@ export function Tree() {
                   isSelected={isSelected()}
                   theme={theme}
                 />
-              )
+              );
             } else {
               return (
                 <ResourceNode
@@ -195,18 +206,23 @@ export function Tree() {
                   isSelected={isSelected()}
                   theme={theme}
                 />
-              )
+              );
             }
           }}
         </For>
       </scrollbox>
     </box>
-  )
+  );
 }
 
-function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: Theme }) {
-  const expandIcon = () => (props.node.expanded ? "▼" : "▶")
-  const displayText = () => `${expandIcon()} ${props.node.groupName} (${props.node.childCount})`
+function GroupNode(props: {
+  node: TreeNode;
+  isSelected: boolean;
+  theme: Theme;
+}) {
+  const expandIcon = () => (props.node.expanded ? "▼" : "▶");
+  const displayText = () =>
+    `${expandIcon()} ${props.node.groupName} (${props.node.childCount})`;
 
   return (
     <box
@@ -221,45 +237,57 @@ function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: Theme })
         {displayText()}
       </text>
     </box>
-  )
+  );
 }
 
-function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: Theme }) {
-  const r = () => props.node.resource!
-  const indent = () => "  ".repeat(props.node.depth)
+function ResourceNode(props: {
+  node: TreeNode;
+  isSelected: boolean;
+  theme: Theme;
+}) {
+  const r = () => props.node.resource!;
+  const indent = () => "  ".repeat(props.node.depth);
 
-  const runtimeIcon = createMemo(() => runtimeStatusIcon(r().runtimeStatus))
-  const runtimeColor = createMemo(() => runtimeStatusColor(props.theme, r().runtimeStatus))
-  const buildIcon = createMemo(() => buildStatusIcon(r().updateStatus))
-  const buildColor = createMemo(() => buildStatusColor(props.theme, r().updateStatus))
+  const runtimeIcon = createMemo(() => runtimeStatusIcon(r().runtimeStatus));
+  const runtimeColor = createMemo(() =>
+    runtimeStatusColor(props.theme, r().runtimeStatus),
+  );
+  const buildIcon = createMemo(() => buildStatusIcon(r().updateStatus));
+  const buildColor = createMemo(() =>
+    buildStatusColor(props.theme, r().updateStatus),
+  );
 
-  const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt))
+  const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));
   const buildDuration = createMemo(() => {
-    if (!r().raw?.status.buildHistory?.length) return ""
-    const lastBuild = r().raw!.status.buildHistory![0]
-    return formatBuildDuration(lastBuild.startTime, lastBuild.finishTime)
-  })
+    if (!r().raw?.status.buildHistory?.length) return "";
+    const lastBuild = r().raw!.status.buildHistory![0];
+    return formatBuildDuration(lastBuild.startTime, lastBuild.finishTime);
+  });
 
   const subheading = createMemo(() => {
-    const parts: string[] = []
-    if (lastUpdate()) parts.push(lastUpdate())
-    if (buildDuration()) parts.push(buildDuration())
-    return parts.join(" · ") || "—"
-  })
+    const parts: string[] = [];
+    if (lastUpdate()) parts.push(lastUpdate());
+    if (buildDuration()) parts.push(buildDuration());
+    return parts.join(" · ") || "—";
+  });
 
   return (
-    <box flexDirection="column">
+    <box
+      flexDirection="column"
+      backgroundColor={props.isSelected ? props.theme.primary : undefined}
+    >
       {/* Line 1: Runtime icon + name */}
-      <box
-        paddingLeft={1}
-        flexDirection="row"
-        backgroundColor={props.isSelected ? props.theme.primary : undefined}
-      >
+      <box paddingLeft={1} flexDirection="row">
         <text fg={runtimeColor()} attributes={1}>
-          {indent()}{runtimeIcon()}
+          {indent()}
+          {runtimeIcon()}
         </text>
-        <text fg={props.isSelected ? props.theme.background : props.theme.text} attributes={props.isSelected ? 1 : 0}>
-          {" "}{r().name}
+        <text
+          fg={props.isSelected ? props.theme.background : props.theme.text}
+          attributes={props.isSelected ? 1 : 0}
+        >
+          {" "}
+          {r().name}
         </text>
         <Show when={r().hasPending}>
           <text fg={props.theme.warning}> ⟳</text>
@@ -269,10 +297,10 @@ function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: Theme
       {/* Line 2: Build icon + timestamp + duration */}
       <box paddingLeft={1} flexDirection="row">
         <text fg={buildColor()}>
-          {indent()}  {buildIcon()}
+          {indent()} {buildIcon()}
         </text>
         <text fg={props.theme.textMuted}> {subheading()}</text>
       </box>
     </box>
-  )
+  );
 }
