@@ -9,10 +9,24 @@ import (
 	"tilt-tui/internal/tilt"
 )
 
+// ConnectionStatus represents the connection state to Tilt
+type ConnectionStatus int
+
+const (
+	Disconnected ConnectionStatus = iota
+	Connecting
+	Connected
+)
+
 // Model represents the header component
 type Model struct {
 	theme    theme.Theme
 	maxWidth int
+
+	// Connection info
+	connectionStatus ConnectionStatus
+	clusterContext   string
+	namespace        string
 
 	// Resource status counts (matching Tilt UI's StatusCounts)
 	healthyCount   int
@@ -28,7 +42,9 @@ type Option func(*Model)
 
 // New creates a new header component
 func New(opts ...Option) *Model {
-	m := &Model{}
+	m := &Model{
+		connectionStatus: Connecting,
+	}
 
 	for _, opt := range opts {
 		opt(m)
@@ -54,6 +70,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.unhealthyCount = msg.Unhealthy
 		m.warningCount = msg.Warning
 		m.disabledCount = msg.Disabled
+		m.namespace = msg.Namespace
+		m.clusterContext = msg.ClusterContext
+		// If we have resources, we're connected
+		if msg.TotalEnabled > 0 || msg.Disabled > 0 {
+			m.connectionStatus = Connected
+		}
+	case ConnectionStatusMsg:
+		m.connectionStatus = msg.Status
+		if msg.ClusterContext != "" {
+			m.clusterContext = msg.ClusterContext
+		}
 	}
 
 	return m, nil
@@ -61,6 +88,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 // View renders the header component
 func (m *Model) View() string {
+	// Build connection status on the left
+	connectionDisplay := m.renderConnectionDisplay()
+
 	// Build status display on the right
 	statusDisplay := m.renderStatusDisplay()
 
@@ -73,17 +103,59 @@ func (m *Model) View() string {
 		Padding(0, 1)
 
 	// Calculate widths
-	statusWidth := lipgloss.Width(statusDisplay)
-	leftWidth := m.maxWidth - statusWidth - 6 // Account for border and padding
+	leftWidth := lipgloss.Width(connectionDisplay)
+	rightWidth := lipgloss.Width(statusDisplay)
+	middleWidth := m.maxWidth - leftWidth - rightWidth - 6 // Account for border and padding
 
-	// Left side (can be empty or show title)
-	leftStyle := lipgloss.NewStyle().Width(leftWidth)
-	leftContent := leftStyle.Render("")
+	// Middle spacer
+	middleStyle := lipgloss.NewStyle().Width(middleWidth)
+	middleContent := middleStyle.Render("")
 
-	// Join left and right
-	content := lipgloss.JoinHorizontal(lipgloss.Top, leftContent, statusDisplay)
+	// Join left, middle, and right
+	content := lipgloss.JoinHorizontal(lipgloss.Top, connectionDisplay, middleContent, statusDisplay)
 
 	return containerStyle.Render(content)
+}
+
+// renderConnectionDisplay renders the connection status and cluster context
+func (m *Model) renderConnectionDisplay() string {
+	okStyle := lipgloss.NewStyle().Foreground(m.theme.StatusOk).Bold(true)
+	pendingStyle := lipgloss.NewStyle().Foreground(m.theme.StatusPending).Bold(true)
+	errorStyle := lipgloss.NewStyle().Foreground(m.theme.StatusError).Bold(true)
+	mutedStyle := lipgloss.NewStyle().Foreground(m.theme.Muted)
+	normalStyle := lipgloss.NewStyle().Foreground(m.theme.Foreground)
+
+	var statusIcon, statusText string
+	var statusStyle lipgloss.Style
+
+	switch m.connectionStatus {
+	case Connected:
+		statusIcon = "●"
+		statusText = "Connected"
+		statusStyle = okStyle
+	case Connecting:
+		statusIcon = "◐"
+		statusText = "Connecting"
+		statusStyle = pendingStyle
+	case Disconnected:
+		statusIcon = "○"
+		statusText = "Disconnected"
+		statusStyle = errorStyle
+	}
+
+	result := statusStyle.Render(statusIcon) + " " + statusStyle.Render(statusText)
+
+	// Add cluster context if available
+	if m.clusterContext != "" {
+		result += mutedStyle.Render(" · ") + normalStyle.Render(m.clusterContext)
+	}
+
+	// Add namespace if available
+	if m.namespace != "" {
+		result += mutedStyle.Render("/") + normalStyle.Render(m.namespace)
+	}
+
+	return result
 }
 
 // renderStatusDisplay renders the status counts display (matching Tilt UI format)
@@ -163,12 +235,20 @@ func WithTheme(t theme.Theme) Option {
 
 // ResourceCountsMsg is used to update the resource counts in the header
 type ResourceCountsMsg struct {
-	Healthy      int
-	TotalEnabled int
-	Pending      int
-	Unhealthy    int
-	Warning      int
-	Disabled     int
+	Healthy        int
+	TotalEnabled   int
+	Pending        int
+	Unhealthy      int
+	Warning        int
+	Disabled       int
+	Namespace      string
+	ClusterContext string
+}
+
+// ConnectionStatusMsg is used to update the connection status
+type ConnectionStatusMsg struct {
+	Status         ConnectionStatus
+	ClusterContext string
 }
 
 // getCombinedStatus returns a combined status for a resource following Tilt's logic
@@ -247,8 +327,33 @@ func hasWarning(r *tilt.Resource) bool {
 // UpdateCounts calculates counts from resources and returns an update message
 func UpdateCounts(resources []tilt.Resource) ResourceCountsMsg {
 	var healthy, totalEnabled, pending, unhealthy, warning, disabled int
+	var namespace, clusterContext string
 
 	for _, r := range resources {
+		// Check for namespace resource to extract namespace info
+		if r.Type == "k8s" && r.Raw != nil {
+			// Try to get namespace from K8s resource info
+			if r.Raw.Status.K8sResourceInfo != nil {
+				// The namespace might be in the pod name or we need to look elsewhere
+			}
+			// Check labels for namespace info
+			if ns, ok := r.Raw.Metadata.Labels["tilt.dev/namespace"]; ok && ns != "" {
+				namespace = ns
+			}
+		}
+
+		// Look for a "namespace" resource type or name
+		if r.Name == "namespace" || r.Type == "namespace" {
+			namespace = r.Name
+		}
+
+		// Try to extract cluster context from annotations
+		if r.Raw != nil {
+			if ctx, ok := r.Raw.Metadata.Annotations["tilt.dev/cluster"]; ok && ctx != "" {
+				clusterContext = ctx
+			}
+		}
+
 		if r.IsDisabled {
 			disabled++
 			continue
@@ -273,12 +378,19 @@ func UpdateCounts(resources []tilt.Resource) ResourceCountsMsg {
 		}
 	}
 
+	// Default cluster context if not found
+	if clusterContext == "" {
+		clusterContext = "docker-desktop" // Common default
+	}
+
 	return ResourceCountsMsg{
-		Healthy:      healthy,
-		TotalEnabled: totalEnabled,
-		Pending:      pending,
-		Unhealthy:    unhealthy,
-		Warning:      warning,
-		Disabled:     disabled,
+		Healthy:        healthy,
+		TotalEnabled:   totalEnabled,
+		Pending:        pending,
+		Unhealthy:      unhealthy,
+		Warning:        warning,
+		Disabled:       disabled,
+		Namespace:      namespace,
+		ClusterContext: clusterContext,
 	}
 }
