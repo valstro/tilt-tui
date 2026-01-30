@@ -1,12 +1,13 @@
 // Tree component - resource list with grouping
 
 import { createSignal, createMemo, For, Show } from "solid-js"
-import { createStore, produce } from "solid-js/store"
+import { createStore } from "solid-js/store"
 import { useKeyboard } from "@opentui/solid"
 import { useTilt } from "../context/tilt"
 import { useFocus } from "../context/focus"
 import {
   defaultTheme,
+  type Theme,
   runtimeStatusIcon,
   runtimeStatusColor,
   buildStatusIcon,
@@ -117,7 +118,6 @@ export function Tree() {
   const nodes = createMemo(() => buildTreeNodes(state.resources, expandedGroups))
 
   const isFocused = createMemo(() => focusState.activePane === "tree")
-  const borderColor = createMemo(() => (isFocused() ? theme.borderFocused : theme.border))
 
   // Keyboard handling
   useKeyboard((key) => {
@@ -162,23 +162,16 @@ export function Tree() {
   return (
     <box
       flexDirection="column"
-      border={true}
-      borderStyle="single"
-      borderColor={borderColor()}
+      backgroundColor={theme.backgroundPane}
       flexGrow={0}
       flexShrink={0}
       width={35}
     >
       {/* Title - fixed */}
       <box paddingLeft={1} paddingRight={1} flexShrink={0}>
-        <text fg={theme.borderFocused} attributes={1}>
+        <text fg={theme.primary} attributes={1}>
           Resources ({state.resources.length})
         </text>
-      </box>
-
-      {/* Separator - fixed */}
-      <box flexShrink={0}>
-        <text fg={borderColor()}>{"─".repeat(33)}</text>
       </box>
 
       {/* Tree content */}
@@ -211,7 +204,7 @@ export function Tree() {
   )
 }
 
-function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: typeof defaultTheme }) {
+function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: Theme }) {
   const expandIcon = () => (props.node.expanded ? "▼" : "▶")
   const displayText = () => `${expandIcon()} ${props.node.groupName} (${props.node.childCount})`
 
@@ -219,10 +212,10 @@ function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: typeof d
     <box
       paddingLeft={1}
       flexDirection="row"
-      backgroundColor={props.isSelected ? props.theme.borderFocused : undefined}
+      backgroundColor={props.isSelected ? props.theme.primary : undefined}
     >
       <text
-        fg={props.isSelected ? props.theme.foreground : props.theme.borderFocused}
+        fg={props.isSelected ? props.theme.background : props.theme.primary}
         attributes={1}
       >
         {displayText()}
@@ -231,7 +224,7 @@ function GroupNode(props: { node: TreeNode; isSelected: boolean; theme: typeof d
   )
 }
 
-function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: typeof defaultTheme }) {
+function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: Theme }) {
   const r = () => props.node.resource!
   const indent = () => "  ".repeat(props.node.depth)
 
@@ -254,25 +247,22 @@ function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: typeo
     return parts.join(" · ") || "—"
   })
 
-  const line1 = () => `${indent()}${runtimeIcon()} ${r().name}${r().hasPending ? " ⟳" : ""}`
-  const line2 = () => `${indent()}  ${buildIcon()} ${subheading()}`
-
   return (
     <box flexDirection="column">
       {/* Line 1: Runtime icon + name */}
       <box
         paddingLeft={1}
         flexDirection="row"
-        backgroundColor={props.isSelected ? props.theme.borderFocused : undefined}
+        backgroundColor={props.isSelected ? props.theme.primary : undefined}
       >
         <text fg={runtimeColor()} attributes={1}>
           {indent()}{runtimeIcon()}
         </text>
-        <text fg={props.theme.foreground} attributes={props.isSelected ? 1 : 0}>
+        <text fg={props.isSelected ? props.theme.background : props.theme.text} attributes={props.isSelected ? 1 : 0}>
           {" "}{r().name}
         </text>
         <Show when={r().hasPending}>
-          <text fg={props.theme.statusPending}> ⟳</text>
+          <text fg={props.theme.warning}> ⟳</text>
         </Show>
       </box>
 
@@ -281,7 +271,7 @@ function ResourceNode(props: { node: TreeNode; isSelected: boolean; theme: typeo
         <text fg={buildColor()}>
           {indent()}  {buildIcon()}
         </text>
-        <text fg={props.theme.muted}> {subheading()}</text>
+        <text fg={props.theme.textMuted}> {subheading()}</text>
       </box>
     </box>
   )

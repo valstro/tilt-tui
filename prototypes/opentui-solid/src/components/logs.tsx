@@ -12,7 +12,7 @@ import { useKeyboard } from "@opentui/solid";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
-import { defaultTheme, logLevelColor } from "../theme/theme";
+import { defaultTheme, type Theme, logLevelColor } from "../theme/theme";
 
 export function Logs() {
   const { state } = useTilt();
@@ -26,9 +26,6 @@ export function Logs() {
   let scrollRef: ScrollBoxRenderable | undefined;
 
   const isFocused = createMemo(() => focusState.activePane === "logs");
-  const borderColor = createMemo(() =>
-    isFocused() ? theme.borderFocused : theme.border,
-  );
 
   const logs = createMemo(() => {
     const resourceName = state.selectedResource;
@@ -133,27 +130,20 @@ export function Logs() {
   return (
     <box
       flexDirection="column"
-      border={true}
-      borderStyle="single"
-      borderColor={borderColor()}
+      backgroundColor={theme.backgroundPane}
       flexGrow={1}
     >
       {/* Title - fixed */}
       <box paddingLeft={1} paddingRight={1} flexDirection="row" flexShrink={0}>
-        <text fg={theme.borderFocused} attributes={1} flexShrink={0}>
+        <text fg={theme.primary} attributes={1} flexShrink={0}>
           Logs: {state.selectedResource ?? ""}
         </text>
         <Show when={autoScroll()}>
-          <text fg={theme.statusOk} flexShrink={0}>
+          <text fg={theme.success} flexShrink={0}>
             {" "}
             [follow]
           </text>
         </Show>
-      </box>
-
-      {/* Separator - fixed */}
-      <box flexShrink={0}>
-        <text fg={borderColor()}>{"─".repeat(60)}</text>
       </box>
 
       {/* Log content - scrollable */}
@@ -167,7 +157,7 @@ export function Logs() {
           when={logs().length > 0}
           fallback={
             <box paddingLeft={1} flexDirection="row">
-              <text fg={theme.muted}>
+              <text fg={theme.textMuted}>
                 No logs available. Select a resource to view logs.
               </text>
             </box>
@@ -192,7 +182,7 @@ function stripAnsi(text: string): string {
 
 function LogLine(props: {
   entry: { timestamp: Date; level: string; text: string };
-  theme: typeof defaultTheme;
+  theme: Theme;
   xOffset: number;
 }) {
   const timestamp = createMemo(() => {

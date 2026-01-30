@@ -18,7 +18,7 @@ export function Footer() {
 
   return (
     <box flexDirection="row" flexShrink={0}>
-      <text fg={theme.foreground}>{helpText()}</text>
+      <text fg={theme.textMuted}>{helpText()}</text>
     </box>
   )
 }

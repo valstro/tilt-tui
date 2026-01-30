@@ -1,43 +1,77 @@
-// Theme and styling utilities - matching Bubbletea prototype
+// Theme and styling utilities - using OpenCode theme structure
+
+// OpenCode theme color definitions (dark mode from opencode.json)
+const opencodeTheme = {
+  // Step colors (gray scale)
+  step1: "#0a0a0a",  // darkest - background
+  step2: "#141414",  // panel background
+  step3: "#1e1e1e",  // element background
+  step4: "#282828",
+  step5: "#323232",
+  step6: "#3c3c3c",
+  step7: "#484848",  // border
+  step8: "#606060",  // border active
+  step9: "#fab283",  // primary (orange/peach)
+  step10: "#ffc09f",
+  step11: "#808080", // muted text
+  step12: "#eeeeee", // text
+
+  // Semantic colors
+  secondary: "#5c9cf5",  // blue
+  accent: "#9d7cd8",     // purple
+  red: "#e06c75",
+  orange: "#f5a742",
+  green: "#7fd88f",
+  cyan: "#56b6c2",
+  yellow: "#e5c07b",
+}
 
 export interface Theme {
   // Base colors
   background: string
-  foreground: string
-  muted: string
+  backgroundPanel: string
+  backgroundElement: string
+  backgroundPane: string  // For pane backgrounds (lighter gray)
+  text: string
+  textMuted: string
+
+  // Border colors (kept for separators if needed)
   border: string
-  borderFocused: string
+  borderActive: string
+  borderSubtle: string
 
-  // Status colors
-  statusOk: string
-  statusPending: string
-  statusError: string
-  statusDisabled: string
-
-  // Log level colors
-  logError: string
-  logWarning: string
-  logInfo: string
+  // Semantic colors
+  primary: string
+  secondary: string
+  accent: string
+  error: string
+  warning: string
+  success: string
+  info: string
 }
 
 export const defaultTheme: Theme = {
   // Base colors
-  background: "#1F2937",
-  foreground: "#F9FAFB",
-  muted: "#6B7280",
-  border: "#374151",
-  borderFocused: "#7C3AED",
+  background: opencodeTheme.step1,
+  backgroundPanel: opencodeTheme.step2,
+  backgroundElement: opencodeTheme.step3,
+  backgroundPane: opencodeTheme.step2,  // Lighter gray for panes
+  text: opencodeTheme.step12,
+  textMuted: opencodeTheme.step11,
 
-  // Status colors
-  statusOk: "#10B981", // green
-  statusPending: "#F59E0B", // yellow
-  statusError: "#EF4444", // red
-  statusDisabled: "#6B7280", // gray
+  // Border colors
+  border: opencodeTheme.step5,
+  borderActive: opencodeTheme.step6,
+  borderSubtle: opencodeTheme.step4,
 
-  // Log level colors
-  logError: "#EF4444",
-  logWarning: "#F59E0B",
-  logInfo: "#F9FAFB",
+  // Semantic colors
+  primary: opencodeTheme.step9,
+  secondary: opencodeTheme.secondary,
+  accent: opencodeTheme.accent,
+  error: opencodeTheme.red,
+  warning: opencodeTheme.orange,
+  success: opencodeTheme.green,
+  info: opencodeTheme.cyan,
 }
 
 // Status icons
@@ -92,53 +126,53 @@ export function statusIcon(status: string): string {
 export function runtimeStatusColor(theme: Theme, status: string): string {
   switch (status) {
     case "ok":
-      return theme.statusOk
+      return theme.success
     case "pending":
     case "in_progress":
-      return theme.statusPending
+      return theme.warning
     case "error":
-      return theme.statusError
+      return theme.error
     default:
-      return theme.statusDisabled
+      return theme.textMuted
   }
 }
 
 export function buildStatusColor(theme: Theme, status: string): string {
   switch (status) {
     case "ok":
-      return theme.statusOk
+      return theme.success
     case "pending":
     case "in_progress":
-      return theme.statusPending
+      return theme.warning
     case "error":
-      return theme.statusError
+      return theme.error
     default:
-      return theme.statusDisabled
+      return theme.textMuted
   }
 }
 
 export function statusColor(theme: Theme, status: string): string {
   switch (status) {
     case "ok":
-      return theme.statusOk
+      return theme.success
     case "pending":
-      return theme.statusPending
+      return theme.warning
     case "error":
-      return theme.statusError
+      return theme.error
     default:
-      return theme.statusDisabled
+      return theme.textMuted
   }
 }
 
 export function logLevelColor(theme: Theme, level: string): string {
   switch (level) {
     case "ERROR":
-      return theme.logError
+      return theme.error
     case "WARN":
     case "WARNING":
-      return theme.logWarning
+      return theme.warning
     default:
-      return theme.foreground
+      return theme.text
   }
 }
 
@@ -160,11 +194,11 @@ export function connectionStatusIcon(status: ConnectionStatus): string {
 export function connectionStatusColor(theme: Theme, status: ConnectionStatus): string {
   switch (status) {
     case "connected":
-      return theme.statusOk
+      return theme.success
     case "connecting":
-      return theme.statusPending
+      return theme.warning
     case "disconnected":
-      return theme.statusError
+      return theme.error
   }
 }
 

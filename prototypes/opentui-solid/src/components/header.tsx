@@ -169,11 +169,11 @@ export function Header() {
 
   return (
     <box
-      border={true}
-      borderStyle="single"
-      borderColor={theme.border}
+      backgroundColor={theme.backgroundPane}
       paddingLeft={1}
       paddingRight={1}
+      paddingTop={0}
+      paddingBottom={0}
       flexShrink={0}
     >
       <box flexDirection="row" justifyContent="space-between" width="100%">
@@ -183,7 +183,7 @@ export function Header() {
         </text>
 
         {/* Right side: status counts */}
-        <text fg={theme.foreground} flexShrink={0}>
+        <text fg={theme.text} flexShrink={0}>
           {rightText()}
         </text>
       </box>
