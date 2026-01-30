@@ -1,5 +1,7 @@
 // Theme and styling utilities - using OpenCode theme structure
 
+import { BorderStyle, BorderSides, RGBA } from "@opentui/core";
+
 // OpenCode theme color definitions (dark mode from opencode.json)
 const opencodeTheme = {
   // Step colors (gray scale)
@@ -69,6 +71,27 @@ export const defaultTheme: Theme = {
   success: opencodeTheme.green,
   info: opencodeTheme.cyan,
 };
+
+// Border props for focused panes - returns props object to spread
+export type FocusBorderProps = {
+  borderStyle?: BorderStyle;
+  border?: boolean | BorderSides[];
+  borderColor?: string | RGBA;
+};
+
+export function focusBorder(
+  theme: Theme,
+  isFocused: boolean,
+): FocusBorderProps {
+  if (!isFocused) {
+    return { border: false };
+  }
+  return {
+    border: ["left"],
+    borderColor: theme.secondary,
+    borderStyle: "heavy",
+  };
+}
 
 // Status icons
 

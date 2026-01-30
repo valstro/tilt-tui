@@ -12,7 +12,8 @@ import { useKeyboard } from "@opentui/solid";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
-import { defaultTheme, type Theme, logLevelColor } from "../theme/theme";
+import { defaultTheme, type Theme, logLevelColor, focusBorder } from "../theme/theme";
+import { PaneHeader } from "./pane-header";
 
 export function Logs() {
   const { state } = useTilt();
@@ -135,22 +136,15 @@ export function Logs() {
       margin={1}
       marginLeft={0}
       paddingLeft={isFocused() ? 0 : 1}
-      border={isFocused() ? ["left"] : false}
-      borderColor={theme.borderActive}
-      borderStyle="heavy"
+      {...focusBorder(theme, isFocused())}
     >
-      {/* Title - fixed */}
-      <box padding={1} flexDirection="row" flexShrink={0}>
-        <text fg={theme.primary} attributes={1} flexShrink={0}>
-          Logs: {state.selectedResource ?? ""}
-        </text>
+      <PaneHeader title={`Logs: ${state.selectedResource ?? ""}`}>
         <Show when={autoScroll()}>
           <text fg={theme.success} flexShrink={0}>
-            {" "}
-            [follow]
+            {" "}[follow]
           </text>
         </Show>
-      </box>
+      </PaneHeader>
 
       {/* Log content - scrollable */}
       <scrollbox

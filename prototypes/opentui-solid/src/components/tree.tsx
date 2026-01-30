@@ -14,7 +14,9 @@ import {
   buildStatusColor,
   formatRelativeTime,
   formatBuildDuration,
+  focusBorder,
 } from "../theme/theme";
+import { PaneHeader } from "./pane-header";
 import type { Resource } from "../tilt/types";
 
 interface TreeNode {
@@ -172,16 +174,9 @@ export function Tree() {
       margin={1}
       width={35}
       paddingLeft={isFocused() ? 0 : 1}
-      border={isFocused() ? ["left"] : false}
-      borderColor={theme.borderActive}
-      borderStyle="heavy"
+      {...focusBorder(theme, isFocused())}
     >
-      {/* Title - fixed */}
-      <box margin={1} marginLeft={0} flexShrink={0}>
-        <text fg={theme.primary} attributes={1}>
-          Resources ({state.resources.length})
-        </text>
-      </box>
+      <PaneHeader title={`Resources (${state.resources.length})`} />
 
       {/* Tree content */}
       <scrollbox flexGrow={1} stickyScroll={false}>
