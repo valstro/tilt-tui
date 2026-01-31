@@ -124,9 +124,15 @@ function calculateCounts(resources: Resource[]): StatusCounts {
   return counts;
 }
 
-export function Header() {
+interface HeaderProps {
+  narrow?: boolean;
+}
+
+export function Header(props: HeaderProps) {
   const { state } = useTilt();
   const theme = defaultTheme;
+
+  const isNarrow = () => props.narrow ?? false;
 
   const counts = createMemo(() => calculateCounts(state.resources));
 
@@ -140,17 +146,29 @@ export function Header() {
     connectionStatusText(state.connectionStatus),
   );
 
-  // Build left side text
-  const leftText = createMemo(() => {
-    let text = `${connectionIcon()} ${connectionText()} · ${state.clusterContext}`;
+  // Build connection status text
+  const connectionStatusLine = createMemo(() => {
+    let text = `${connectionIcon()} ${connectionText()}`;
+    if (!isNarrow()) {
+      text += ` · ${state.clusterContext}`;
+      if (state.namespace) {
+        text += `/${state.namespace}`;
+      }
+    }
+    return text;
+  });
+
+  // Build context line (only for narrow mode)
+  const contextLine = createMemo(() => {
+    let text = state.clusterContext;
     if (state.namespace) {
       text += `/${state.namespace}`;
     }
     return text;
   });
 
-  // Build right side text
-  const rightText = createMemo(() => {
+  // Build status counts text
+  const countsText = createMemo(() => {
     const parts: string[] = [];
     const c = counts();
 
@@ -164,15 +182,39 @@ export function Header() {
       parts.push(`● ${c.pending}`);
     }
     if (c.totalEnabled > 0) {
-      parts.push(`✓ ${c.healthy} / ${c.totalEnabled}`);
+      parts.push(`✓ ${c.healthy}/${c.totalEnabled}`);
     }
     if (c.disabled > 0) {
       parts.push(`⊘ ${c.disabled}`);
     }
 
-    return parts.join("  ");
+    return parts.join(isNarrow() ? " " : "  ");
   });
 
+  // Narrow mode: stacked vertical layout for sidebar
+  if (isNarrow()) {
+    return (
+      <box
+        flexDirection="row"
+        padding={1}
+        paddingLeft={2}
+        paddingRight={2}
+        flexShrink={0}
+        justifyContent="space-between"
+      >
+        {/* Line 1: connection status */}
+        <text fg={connectionColor()} attributes={1}>
+          {connectionStatusLine()}
+        </text>
+        {/* Line 2: cluster context */}
+        {/* <text fg={theme.textMuted}>{contextLine()}</text> */}
+        {/* Line 3: status counts */}
+        <text fg={theme.text}>{countsText()}</text>
+      </box>
+    );
+  }
+
+  // Wide mode: horizontal layout for full-width header
   return (
     <box
       backgroundColor={theme.contentPane}
@@ -186,12 +228,12 @@ export function Header() {
       <box flexDirection="row" justifyContent="space-between" width="100%">
         {/* Left side: connection status */}
         <text fg={connectionColor()} attributes={1} flexShrink={0}>
-          {leftText()}
+          {connectionStatusLine()}
         </text>
 
         {/* Right side: status counts */}
         <text fg={theme.text} flexShrink={0}>
-          {rightText()}
+          {countsText()}
         </text>
       </box>
     </box>

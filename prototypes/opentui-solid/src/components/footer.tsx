@@ -10,19 +10,17 @@ export function Footer() {
 
   const helpText = createMemo(() => {
     if (state.activePane === "tree") {
-      return "[RESOURCES] <j/k> Up/Down  <Enter> Select  <r> Trigger  <Q> Quit";
+      return "j/k nav · Enter select · r trigger · Tab switch · ^e sidebar · Q quit";
     } else {
-      return "[LOGS] <j/k> Up/Down  <h/l> Scroll L/R  <g/G> Top/Bottom  <f> Follow  <Q> Quit";
+      return "j/k scroll · g/G top/bottom · f follow · Tab switch · ^e sidebar · Q quit";
     }
   });
 
   return (
     <box
-      marginTop={-1}
-      marginLeft={1}
-      marginRight={1}
-      paddingLeft={2}
-      paddingRight={2}
+      paddingLeft={1}
+      paddingRight={1}
+      paddingBottom={1}
       flexShrink={0}
       flexDirection="row"
     >

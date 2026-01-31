@@ -1,4 +1,4 @@
-// Tree component - resource list with grouping
+// Tree component - resource list with grouping (sidebar)
 
 import { createSignal, createMemo, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -16,6 +16,7 @@ import {
   formatBuildDuration,
   focusBorder,
 } from "../theme/theme";
+import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
 import type { Resource } from "../tilt/types";
 
@@ -171,15 +172,17 @@ export function Tree() {
       backgroundColor={theme.contentPane}
       flexGrow={0}
       flexShrink={0}
-      margin={1}
-      width={35}
+      marginTop={1}
+      marginBottom={1}
+      marginLeft={1}
+      width={42}
       paddingLeft={isFocused() ? 0 : 1}
       {...focusBorder(theme, isFocused())}
     >
       <PaneHeader title={`Resources (${state.resources.length})`} />
 
       {/* Tree content */}
-      <scrollbox flexGrow={1} stickyScroll={false}>
+      <scrollbox paddingLeft={1} flexGrow={1} stickyScroll={false}>
         <For each={nodes()}>
           {(node, index) => {
             const isSelected = createMemo(
@@ -206,6 +209,9 @@ export function Tree() {
           }}
         </For>
       </scrollbox>
+
+      {/* Header at top of sidebar */}
+      <Header narrow={true} />
     </box>
   );
 }

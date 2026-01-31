@@ -1,17 +1,17 @@
 // Main App component
 
+import { Show } from "solid-js";
 import { useKeyboard, useRenderer } from "@opentui/solid";
 import { TiltProvider } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
 import { Header } from "./components/header";
 import { Tree } from "./components/tree";
-import { Logs } from "./components/logs";
-import { Footer } from "./components/footer";
+import { ResourceView } from "./components/resourceview";
 import { defaultTheme } from "./theme/theme";
 
 function AppContent() {
   const renderer = useRenderer();
-  const { cyclePane, cyclePaneReverse } = useFocus();
+  const { cyclePane, cyclePaneReverse, sidebarVisible, toggleSidebar } = useFocus();
   const theme = defaultTheme;
 
   // Global keyboard handling
@@ -20,6 +20,13 @@ function AppContent() {
     if ((key.name === "q" && key.shift) || (key.ctrl && key.name === "c")) {
       key.preventDefault();
       renderer.destroy();
+      return;
+    }
+
+    // Toggle sidebar with Ctrl+e
+    if (key.ctrl && key.name === "e") {
+      key.preventDefault();
+      toggleSidebar();
       return;
     }
 
@@ -42,20 +49,19 @@ function AppContent() {
       height="100%"
       backgroundColor={theme.background}
     >
-      {/* Header - fixed height */}
-      <box flexShrink={0}>
-        <Header />
-      </box>
+      {/* Header - only shown when sidebar is hidden */}
+      <Show when={!sidebarVisible()}>
+        <box flexShrink={0}>
+          <Header />
+        </box>
+      </Show>
 
-      {/* Main content: Tree + Logs - grows to fill */}
-      <box flexDirection="row" flexGrow={1} gap={1}>
-        <Tree />
-        <Logs />
-      </box>
-
-      {/* Footer - fixed height */}
-      <box flexShrink={0}>
-        <Footer />
+      {/* Main content: Tree (sidebar) + ResourceView */}
+      <box flexDirection="row" flexGrow={1}>
+        <Show when={sidebarVisible()}>
+          <Tree />
+        </Show>
+        <ResourceView />
       </box>
     </box>
   );
