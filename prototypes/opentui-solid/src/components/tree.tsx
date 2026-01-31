@@ -2,9 +2,9 @@
 
 import { createSignal, createMemo, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
-import { useKeyboard } from "@opentui/solid";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
+import { useKeyHandler } from "../keyboard/useKeyHandler";
 import {
   defaultTheme,
   type Theme,
@@ -17,6 +17,7 @@ import {
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
 import type { Resource } from "../tilt/types";
+import { Commands } from "@/commands";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -110,7 +111,7 @@ function buildTreeNodes(
 
 export function Tree() {
   const { state, selectResource, triggerResource } = useTilt();
-  const { state: focusState } = useFocus();
+  const { state: focusState, setActivePane } = useFocus();
   const theme = defaultTheme;
 
   const [cursor, setCursor] = createSignal(0);
@@ -124,45 +125,44 @@ export function Tree() {
 
   const isFocused = createMemo(() => focusState.activePane === "tree");
 
-  // Keyboard handling
-  useKeyboard((key) => {
-    if (!isFocused()) return;
-
-    switch (key.name) {
-      case "j":
-      case "down":
-        setCursor((c) => Math.min(c + 1, nodes().length - 1));
-        break;
-      case "k":
-      case "up":
-        setCursor((c) => Math.max(c - 1, 0));
-        break;
-      case "g":
-        if (key.shift) {
-          // Shift+g (G) - go to end
-          setCursor(nodes().length - 1);
-        } else {
-          // g - go to start
+  // Keyboard handling - only active when focused
+  useKeyHandler(
+    "tree",
+    (command) => {
+      switch (command) {
+        case Commands.NAV_DOWN:
+          setCursor((c) => Math.min(c + 1, nodes().length - 1));
+          break;
+        case Commands.NAV_UP:
+          setCursor((c) => Math.max(c - 1, 0));
+          break;
+        case Commands.NAV_TOP:
           setCursor(0);
+          break;
+        case Commands.NAV_BOTTOM:
+          setCursor(nodes().length - 1);
+          break;
+        case Commands.TREE_SELECT: {
+          const node = nodes()[cursor()];
+          if (node?.type === "group" && node.groupName) {
+            setExpandedGroups(node.groupName, !node.expanded);
+          } else if (node?.type === "resource" && node.resource) {
+            selectResource(node.resource.name);
+            setActivePane("resource"); // Focus logs view after selecting resource
+          }
+          break;
         }
-        break;
-      case "space":
-      case "return":
-        const node = nodes()[cursor()];
-        if (node?.type === "group" && node.groupName) {
-          setExpandedGroups(node.groupName, !node.expanded);
-        } else if (node?.type === "resource" && node.resource) {
-          selectResource(node.resource.name);
+        case Commands.TREE_TRIGGER: {
+          const currentNode = nodes()[cursor()];
+          if (currentNode?.type === "resource" && currentNode.resource) {
+            triggerResource(currentNode.resource.name);
+          }
+          break;
         }
-        break;
-      case "r":
-        const currentNode = nodes()[cursor()];
-        if (currentNode?.type === "resource" && currentNode.resource) {
-          triggerResource(currentNode.resource.name);
-        }
-        break;
-    }
-  });
+      }
+    },
+    isFocused,
+  );
 
   return (
     <box

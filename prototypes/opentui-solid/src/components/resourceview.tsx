@@ -9,10 +9,11 @@ import {
   createEffect,
   on,
 } from "solid-js";
-import { useKeyboard } from "@opentui/solid";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
+import { useKeyHandler } from "../keyboard/useKeyHandler";
+import { Commands } from "../commands";
 import {
   defaultTheme,
   type Theme,
@@ -55,85 +56,72 @@ export function ResourceView() {
     ),
   );
 
-  // Keyboard handling
-  useKeyboard((key) => {
-    if (!isFocused()) return;
-
-    switch (key.name) {
-      case "j":
-      case "down":
-        key.preventDefault();
-        setAutoScroll(false);
-        if (scrollRef) {
-          scrollRef.scrollBy(1);
-        }
-        break;
-      case "k":
-      case "up":
-        key.preventDefault();
-        setAutoScroll(false);
-        if (scrollRef) {
-          scrollRef.scrollBy(-1);
-        }
-        break;
-      case "g":
-        key.preventDefault();
-        if (key.shift) {
-          // Shift+g (G) - go to bottom
-          setAutoScroll(true);
+  // Keyboard handling - only active when focused
+  useKeyHandler(
+    "resource",
+    (command) => {
+      switch (command) {
+        case Commands.NAV_DOWN:
+          setAutoScroll(false);
           if (scrollRef) {
-            scrollRef.scrollTo(scrollRef.scrollHeight);
+            scrollRef.scrollBy(1);
           }
-        } else {
-          // g - go to top
+          break;
+        case Commands.NAV_UP:
+          setAutoScroll(false);
+          if (scrollRef) {
+            scrollRef.scrollBy(-1);
+          }
+          break;
+        case Commands.NAV_TOP:
           setAutoScroll(false);
           if (scrollRef) {
             scrollRef.scrollTo(0);
           }
-        }
-        break;
-      case "h":
-      case "left":
-        key.preventDefault();
-        setXOffset((x) => Math.max(0, x - 4));
-        break;
-      case "l":
-      case "right":
-        key.preventDefault();
-        setXOffset((x) => x + 4);
-        break;
-      case "pageup":
-        key.preventDefault();
-        setAutoScroll(false);
-        if (scrollRef) {
-          scrollRef.scrollBy(-Math.floor(scrollRef.height / 2));
-        }
-        break;
-      case "pagedown":
-        key.preventDefault();
-        if (scrollRef) {
-          scrollRef.scrollBy(Math.floor(scrollRef.height / 2));
-          // Check if at bottom
-          if (
-            scrollRef.scrollTop >=
-            scrollRef.scrollHeight - scrollRef.height
-          ) {
-            setAutoScroll(true);
-          }
-        }
-        break;
-      case "f":
-        key.preventDefault();
-        setAutoScroll((s) => {
-          const newVal = !s;
-          if (newVal && scrollRef) {
+          break;
+        case Commands.NAV_BOTTOM:
+          setAutoScroll(true);
+          if (scrollRef) {
             scrollRef.scrollTo(scrollRef.scrollHeight);
           }
-          return newVal;
-        });
-        break;
-    }
-  });
+          break;
+        case Commands.SCROLL_LEFT:
+          setXOffset((x) => Math.max(0, x - 4));
+          break;
+        case Commands.SCROLL_RIGHT:
+          setXOffset((x) => x + 4);
+          break;
+        case Commands.SCROLL_PAGEUP:
+          setAutoScroll(false);
+          if (scrollRef) {
+            scrollRef.scrollBy(-Math.floor(scrollRef.height / 2));
+          }
+          break;
+        case Commands.SCROLL_PAGEDOWN:
+          if (scrollRef) {
+            scrollRef.scrollBy(Math.floor(scrollRef.height / 2));
+            // Check if at bottom
+            if (
+              scrollRef.scrollTop >=
+              scrollRef.scrollHeight - scrollRef.height
+            ) {
+              setAutoScroll(true);
+            }
+          }
+          break;
+        case Commands.SCROLL_FOLLOW:
+          setAutoScroll((s) => {
+            const newVal = !s;
+            if (newVal && scrollRef) {
+              scrollRef.scrollTo(scrollRef.scrollHeight);
+            }
+            return newVal;
+          });
+          break;
+      }
+    },
+    isFocused,
+  );
 
   return (
     <box

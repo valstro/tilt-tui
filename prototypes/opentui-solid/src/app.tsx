@@ -1,44 +1,37 @@
 // Main App component
 
 import { Show } from "solid-js";
-import { useKeyboard, useRenderer } from "@opentui/solid";
+import { useRenderer } from "@opentui/solid";
 import { TiltProvider } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
 import { Header } from "./components/header";
 import { Tree } from "./components/tree";
 import { ResourceView } from "./components/resourceview";
 import { defaultTheme } from "./theme/theme";
+import { useKeyHandler } from "./keyboard/useKeyHandler";
+import { Commands } from "./commands";
 
 function AppContent() {
   const renderer = useRenderer();
-  const { cyclePane, cyclePaneReverse, sidebarVisible, toggleSidebar } = useFocus();
+  const { cyclePane, cyclePaneReverse, sidebarVisible, toggleSidebar } =
+    useFocus();
   const theme = defaultTheme;
 
-  // Global keyboard handling
-  useKeyboard((key) => {
-    // Quit with Q (shift+q) or Ctrl+C
-    if ((key.name === "q" && key.shift) || (key.ctrl && key.name === "c")) {
-      key.preventDefault();
-      renderer.destroy();
-      return;
-    }
-
-    // Toggle sidebar with Ctrl+e
-    if (key.ctrl && key.name === "e") {
-      key.preventDefault();
-      toggleSidebar();
-      return;
-    }
-
-    // Tab switching
-    if (key.name === "tab") {
-      key.preventDefault();
-      if (key.shift) {
-        cyclePaneReverse();
-      } else {
+  // App-level keyboard handling
+  useKeyHandler("app", (command) => {
+    switch (command) {
+      case Commands.APP_QUIT:
+        renderer.destroy();
+        break;
+      case Commands.SIDEBAR_TOGGLE:
+        toggleSidebar();
+        break;
+      case Commands.FOCUS_NEXT:
         cyclePane();
-      }
-      return;
+        break;
+      case Commands.FOCUS_PREV:
+        cyclePaneReverse();
+        break;
     }
   });
 

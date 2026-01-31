@@ -33,11 +33,25 @@ export function FocusProvider(props: ParentProps) {
   }
 
   function cyclePane() {
-    setState("activePane", (current) => (current === "tree" ? "resource" : "tree"))
+    setState("activePane", (current) => {
+      const next = current === "tree" ? "resource" : "tree"
+      // Expand sidebar when focusing tree
+      if (next === "tree" && !sidebarOpen()) {
+        setSidebarOpen(true)
+      }
+      return next
+    })
   }
 
   function cyclePaneReverse() {
-    setState("activePane", (current) => (current === "tree" ? "resource" : "tree"))
+    setState("activePane", (current) => {
+      const next = current === "tree" ? "resource" : "tree"
+      // Expand sidebar when focusing tree
+      if (next === "tree" && !sidebarOpen()) {
+        setSidebarOpen(true)
+      }
+      return next
+    })
   }
 
   function sidebarVisible() {
@@ -45,7 +59,17 @@ export function FocusProvider(props: ParentProps) {
   }
 
   function toggleSidebar() {
-    setSidebarOpen((prev) => !prev)
+    setSidebarOpen((prev) => {
+      const newValue = !prev
+      if (newValue) {
+        // When showing sidebar, focus tree
+        setState("activePane", "tree")
+      } else {
+        // When hiding sidebar, focus resource pane since tree is no longer visible
+        setState("activePane", "resource")
+      }
+      return newValue
+    })
   }
 
   const value: FocusContextValue = {
