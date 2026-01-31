@@ -49,7 +49,20 @@ export function ResourceView() {
       () => {
         setAutoScroll(true);
         setXOffset(0);
+        // Reset scroll to top first - scrollbox will handle positioning
         if (scrollRef) {
+          scrollRef.scrollTo(0);
+        }
+      },
+    ),
+  );
+
+  // Scroll to bottom when logs change and autoScroll is enabled
+  createEffect(
+    on(
+      () => logs().length,
+      () => {
+        if (autoScroll() && scrollRef) {
           scrollRef.scrollTo(scrollRef.scrollHeight);
         }
       },
@@ -145,30 +158,34 @@ export function ResourceView() {
 
       {/* Future: Resource header with status, actions will go here */}
 
-      {/* Log content - scrollable */}
-      <scrollbox
-        ref={(r: ScrollBoxRenderable) => (scrollRef = r)}
-        flexGrow={1}
-        stickyScroll={autoScroll()}
-        stickyStart="bottom"
-      >
-        <Show
-          when={logs().length > 0}
-          fallback={
-            <box paddingLeft={1} flexDirection="row">
-              <text fg={theme.textMuted}>
-                No logs available. Select a resource to view logs.
-              </text>
-            </box>
-          }
-        >
-          <For each={logs()}>
-            {(entry) => (
-              <LogLine entry={entry} theme={theme} xOffset={xOffset()} />
-            )}
-          </For>
-        </Show>
-      </scrollbox>
+      {/* Log content - scrollable, keyed by resource to force re-render */}
+      <Show when={state.selectedResource} keyed>
+        {(resourceName) => (
+          <scrollbox
+            ref={(r: ScrollBoxRenderable) => (scrollRef = r)}
+            flexGrow={1}
+            stickyScroll={autoScroll()}
+            stickyStart="bottom"
+          >
+            <Show
+              when={logs().length > 0}
+              fallback={
+                <box paddingLeft={1} flexDirection="row">
+                  <text fg={theme.textMuted}>
+                    No logs available for {resourceName}.
+                  </text>
+                </box>
+              }
+            >
+              <For each={logs()}>
+                {(entry) => (
+                  <LogLine entry={entry} theme={theme} xOffset={xOffset()} />
+                )}
+              </For>
+            </Show>
+          </scrollbox>
+        )}
+      </Show>
 
       {/* Sticky footer */}
       <box flexShrink={0}>
