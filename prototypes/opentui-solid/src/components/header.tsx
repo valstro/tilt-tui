@@ -1,12 +1,13 @@
 // Header component - connection status and resource counts
 
-import { createMemo } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { useTilt } from "../context/tilt";
 import {
   defaultTheme,
   connectionStatusIcon,
   connectionStatusColor,
   connectionStatusText,
+  type Theme,
 } from "../theme/theme";
 import type { Resource } from "../tilt/types";
 
@@ -167,29 +168,59 @@ export function Header(props: HeaderProps) {
     return text;
   });
 
-  // Build status counts text
-  const countsText = createMemo(() => {
-    const parts: string[] = [];
+  // Build status count items with colors
+  interface StatusItem {
+    icon: string;
+    text: string;
+    color: string;
+  }
+
+  const statusItems = createMemo((): StatusItem[] => {
+    const items: StatusItem[] = [];
     const c = counts();
 
     if (c.unhealthy > 0) {
-      parts.push(`✗ ${c.unhealthy}`);
+      items.push({ icon: "✗", text: `${c.unhealthy}`, color: theme.error });
     }
     if (c.warning > 0) {
-      parts.push(`⚠ ${c.warning}`);
+      items.push({ icon: "⚠", text: `${c.warning}`, color: theme.warning });
     }
     if (c.pending > 0) {
-      parts.push(`● ${c.pending}`);
+      items.push({ icon: "●", text: `${c.pending}`, color: theme.warning });
     }
     if (c.totalEnabled > 0) {
-      parts.push(`✓ ${c.healthy}/${c.totalEnabled}`);
+      items.push({
+        icon: "✓",
+        text: `${c.healthy}/${c.totalEnabled}`,
+        color: theme.success,
+      });
     }
     if (c.disabled > 0) {
-      parts.push(`⊘ ${c.disabled}`);
+      items.push({ icon: "⊘", text: `${c.disabled}`, color: theme.textMuted });
     }
 
-    return parts.join(isNarrow() ? " " : "  ");
+    return items;
   });
+
+  // Render status counts with individual colors
+  function StatusCounts(props: { narrow: boolean }) {
+    const separator = () => (props.narrow ? " " : "  ");
+    return (
+      <box flexDirection="row" flexShrink={0}>
+        <For each={statusItems()}>
+          {(item, index) => (
+            <>
+              <Show when={index() > 0}>
+                <text fg={theme.textMuted}>{separator()}</text>
+              </Show>
+              <text fg={item.color}>{item.icon}</text>
+              <text fg={theme.text}> {item.text}</text>
+            </>
+          )}
+        </For>
+      </box>
+    );
+  }
 
   // Narrow mode: stacked vertical layout for sidebar
   if (isNarrow()) {
@@ -208,8 +239,8 @@ export function Header(props: HeaderProps) {
         </text>
         {/* Line 2: cluster context */}
         {/* <text fg={theme.textMuted}>{contextLine()}</text> */}
-        {/* Line 3: status counts */}
-        <text fg={theme.text}>{countsText()}</text>
+        {/* Line 3: status counts with colors */}
+        <StatusCounts narrow={true} />
       </box>
     );
   }
@@ -231,10 +262,8 @@ export function Header(props: HeaderProps) {
           {connectionStatusLine()}
         </text>
 
-        {/* Right side: status counts */}
-        <text fg={theme.text} flexShrink={0}>
-          {countsText()}
-        </text>
+        {/* Right side: status counts with colors */}
+        <StatusCounts narrow={false} />
       </box>
     </box>
   );

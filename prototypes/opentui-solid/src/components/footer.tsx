@@ -1,18 +1,37 @@
 // Footer component - context-aware help
 
-import { createMemo } from "solid-js";
+import { createMemo, For } from "solid-js";
 import { useFocus } from "../context/focus";
 import { defaultTheme } from "../theme/theme";
+
+interface HelpItem {
+  keys: string;
+  action: string;
+}
 
 export function Footer() {
   const { state } = useFocus();
   const theme = defaultTheme;
 
-  const helpText = createMemo(() => {
+  const helpItems = createMemo((): HelpItem[] => {
     if (state.activePane === "tree") {
-      return "j/k nav · Enter select · r trigger · Tab switch · ^e sidebar · Q quit";
+      return [
+        { keys: "j/k", action: "nav" },
+        { keys: "Enter", action: "select" },
+        { keys: "r", action: "trigger" },
+        { keys: "Tab", action: "switch" },
+        { keys: "^e", action: "sidebar" },
+        { keys: "Q", action: "quit" },
+      ];
     } else {
-      return "j/k scroll · g/G top/bottom · f follow · Tab switch · ^e sidebar · Q quit";
+      return [
+        { keys: "j/k", action: "scroll" },
+        { keys: "g/G", action: "top/bottom" },
+        { keys: "f", action: "follow" },
+        { keys: "Tab", action: "switch" },
+        { keys: "^e", action: "sidebar" },
+        { keys: "Q", action: "quit" },
+      ];
     }
   });
 
@@ -24,7 +43,15 @@ export function Footer() {
       flexShrink={0}
       flexDirection="row"
     >
-      <text fg={theme.textMuted}>{helpText()}</text>
+      <For each={helpItems()}>
+        {(item, index) => (
+          <>
+            {index() > 0 && <text fg={theme.textMuted}> · </text>}
+            <text fg={theme.primary}>{item.keys}</text>
+            <text fg={theme.textMuted}> {item.action}</text>
+          </>
+        )}
+      </For>
     </box>
   );
 }

@@ -8,9 +8,7 @@ import { useFocus } from "../context/focus";
 import {
   defaultTheme,
   type Theme,
-  runtimeStatusIcon,
   runtimeStatusColor,
-  buildStatusIcon,
   buildStatusColor,
   formatRelativeTime,
   formatBuildDuration,
@@ -210,7 +208,24 @@ export function Tree() {
         </For>
       </scrollbox>
 
-      {/* Header at top of sidebar */}
+      {/* Status legend */}
+      <box
+        alignSelf="center"
+        flexShrink={0}
+        paddingLeft={1}
+        paddingTop={1}
+        flexDirection="row"
+        gap={1}
+      >
+        <text fg={theme.success}>●</text>
+        <text fg={theme.textMuted}>ok</text>
+        <text fg={theme.warning}>●</text>
+        <text fg={theme.textMuted}>pending</text>
+        <text fg={theme.error}>●</text>
+        <text fg={theme.textMuted}>error</text>
+      </box>
+
+      {/* Header at bottom of sidebar */}
       <Header narrow={true} />
     </box>
   );
@@ -247,13 +262,13 @@ function ResourceNode(props: {
   theme: Theme;
 }) {
   const r = () => props.node.resource!;
-  const indent = () => "  ".repeat(props.node.depth);
 
-  const runtimeIcon = createMemo(() => runtimeStatusIcon(r().runtimeStatus));
+  // Runtime status color for line 1 border
   const runtimeColor = createMemo(() =>
     runtimeStatusColor(props.theme, r().runtimeStatus),
   );
-  const buildIcon = createMemo(() => buildStatusIcon(r().updateStatus));
+
+  // Build status color for line 2 border
   const buildColor = createMemo(() =>
     buildStatusColor(props.theme, r().updateStatus),
   );
@@ -273,21 +288,20 @@ function ResourceNode(props: {
   });
 
   return (
-    <box
-      flexDirection="column"
-      backgroundColor={props.isSelected ? props.theme.primary : undefined}
-    >
-      {/* Line 1: Runtime icon + name */}
-      <box paddingLeft={1} flexDirection="row">
-        <text fg={runtimeColor()} attributes={1}>
-          {indent()}
-          {runtimeIcon()}
-        </text>
+    <box flexDirection="column" marginLeft={1}>
+      {/* Line 1: Resource name - runtime status border */}
+      <box
+        flexDirection="row"
+        backgroundColor={props.isSelected ? props.theme.primary : undefined}
+        border={["left"]}
+        borderStyle="heavy"
+        borderColor={runtimeColor()}
+        paddingLeft={1}
+      >
         <text
           fg={props.isSelected ? props.theme.background : props.theme.text}
           attributes={props.isSelected ? 1 : 0}
         >
-          {" "}
           {r().name}
         </text>
         <Show when={r().hasPending}>
@@ -295,12 +309,20 @@ function ResourceNode(props: {
         </Show>
       </box>
 
-      {/* Line 2: Build icon + timestamp + duration */}
-      <box paddingLeft={1} flexDirection="row">
-        <text fg={buildColor()}>
-          {indent()} {buildIcon()}
+      {/* Line 2: Timestamp + duration - build status border */}
+      <box
+        flexDirection="row"
+        backgroundColor={props.isSelected ? props.theme.primary : undefined}
+        border={["left"]}
+        borderStyle="heavy"
+        borderColor={buildColor()}
+        paddingLeft={1}
+      >
+        <text
+          fg={props.isSelected ? props.theme.background : props.theme.textMuted}
+        >
+          {subheading()}
         </text>
-        <text fg={props.theme.textMuted}> {subheading()}</text>
       </box>
     </box>
   );
