@@ -20,6 +20,7 @@ interface TiltContextValue {
   client: TiltClient
   selectResource: (name: string) => void
   triggerResource: (name: string) => Promise<void>
+  toggleResourceDisable: (name: string) => Promise<void>
   refreshLogs: (resourceName: string) => Promise<void>
 }
 
@@ -128,6 +129,35 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     }
   }
 
+  async function toggleResourceDisable(name: string) {
+    const resourceIndex = state.resources.findIndex((r) => r.name === name)
+    if (resourceIndex === -1) {
+      console.error(`Resource not found: ${name}`)
+      return
+    }
+
+    const resource = state.resources[resourceIndex]
+    const button = resource.disableToggleButton
+    if (!button) {
+      console.error(`No disable toggle button found for resource: ${name}`)
+      return
+    }
+
+    try {
+      // The button's hidden "action" input already has the correct value set by Tilt:
+      // - "on" when resource is enabled (click to disable)
+      // - "off" when resource is disabled (click to enable)
+      // So we don't need to override it - just click the button with its existing values
+      const updatedButton = await client.clickButton(button, {}, abortController?.signal)
+      
+      // Update the button in the store with the new resourceVersion
+      // This prevents 409 Conflict errors on subsequent clicks before WebSocket updates
+      setState("resources", resourceIndex, "disableToggleButton", updatedButton)
+    } catch (err) {
+      console.error(`Failed to toggle disable for resource ${name}:`, err)
+    }
+  }
+
   onMount(() => {
     connect()
 
@@ -159,6 +189,7 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     client,
     selectResource,
     triggerResource,
+    toggleResourceDisable,
     refreshLogs,
   }
 

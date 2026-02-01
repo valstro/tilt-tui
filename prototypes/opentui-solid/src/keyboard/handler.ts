@@ -1,10 +1,8 @@
 // Keyboard event handler
 // Maps key events to commands based on current mode
 
-import { useFocus } from "@/context/focus";
 import { keymap } from "../keymap";
 import { Mode, Command } from "./keymap-utils";
-import { Accessor } from "solid-js";
 
 export interface KeyEvent {
   name: string;
@@ -24,12 +22,6 @@ export function handleKeyEvent(
   mode: Mode,
   paletteOpen: boolean,
 ): Command | null {
-  console.log("keyevent", {
-    mode,
-    paletteOpen,
-    event,
-  });
-
   // don't execute any focusable mode commands when palette is open
   if (paletteOpen && mode !== "app") {
     return null;

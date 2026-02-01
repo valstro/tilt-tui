@@ -6,6 +6,7 @@ export const Commands = {
   FOCUS_NEXT: "focus.next",
   FOCUS_PREV: "focus.prev",
   RELOAD_RESOURCE: "resource.trigger",
+  RESOURCE_DISABLE_TOGGLE: "resource.disable.toggle",
 
   // Navigation (shared between tree and resource)
   NAV_DOWN: "nav.down",

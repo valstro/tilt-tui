@@ -1,5 +1,9 @@
 // Tilt API Types - TypeScript translation from Go
 
+// UIButton annotation constants
+export const UIBUTTON_ANNOTATION_TYPE = "tilt.dev/uibutton-type";
+export const UIBUTTON_TOGGLE_DISABLE_TYPE = "DisableToggle";
+
 export interface TiltApiResourceMetadata {
   annotations: Record<string, string>
   creationTimestamp: string
@@ -197,6 +201,8 @@ export interface Resource {
   hasPending: boolean
   order: number
   buttons: ButtonAction[]
+  /** The disable toggle button for this resource (if it exists) */
+  disableToggleButton?: UIButton
   raw: TiltApiUIResource
 }
 
@@ -224,7 +230,8 @@ export function getResourceType(status: TiltResourceStatus): string {
 
 export function isDisabled(status: TiltResourceStatus): boolean {
   if (!status.disableStatus) return false
-  return status.disableStatus.disabledCount > 0 && status.disableStatus.enabledCount === 0
+  // enabledCount may be undefined when disabled, so check disabledCount > 0 and enabledCount is falsy
+  return status.disableStatus.disabledCount > 0 && !status.disableStatus.enabledCount
 }
 
 export function hasPendingChanges(status: TiltResourceStatus): boolean {
@@ -300,15 +307,26 @@ export function buttonActionFromUIButton(btn: UIButton): ButtonAction {
   }
 }
 
+export function isDisableToggleButton(btn: UIButton): boolean {
+  return btn.metadata.annotations?.[UIBUTTON_ANNOTATION_TYPE] === UIBUTTON_TOGGLE_DISABLE_TYPE
+}
+
 export function associateButtonsWithResources(resources: Resource[], buttons: UIButton[]): Resource[] {
   const buttonMap = new Map<string, ButtonAction[]>()
+  const disableToggleMap = new Map<string, UIButton>()
   
   for (const btn of buttons) {
     const resourceName = btn.spec.location?.componentType === "Resource" ? btn.spec.location.componentID : ""
     if (resourceName) {
-      const existing = buttonMap.get(resourceName) ?? []
-      existing.push(buttonActionFromUIButton(btn))
-      buttonMap.set(resourceName, existing)
+      // Check if this is a disable toggle button
+      if (isDisableToggleButton(btn)) {
+        disableToggleMap.set(resourceName, btn)
+      } else {
+        // Regular button - add to buttons list
+        const existing = buttonMap.get(resourceName) ?? []
+        existing.push(buttonActionFromUIButton(btn))
+        buttonMap.set(resourceName, existing)
+      }
     }
   }
 
@@ -316,6 +334,12 @@ export function associateButtonsWithResources(resources: Resource[], buttons: UI
     const btns = buttonMap.get(resource.name)
     if (btns) {
       resource.buttons = btns
+    }
+    
+    // Assign disable toggle button if it exists
+    const disableToggle = disableToggleMap.get(resource.name)
+    if (disableToggle) {
+      resource.disableToggleButton = disableToggle
     }
   }
 

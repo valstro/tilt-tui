@@ -72,6 +72,7 @@ export class TiltClient {
     }
 
     ws.onmessage = (event) => {
+      console.log("WS MESSAGE");
       try {
         const viewResp: ViewResponse = JSON.parse(event.data);
 
@@ -81,6 +82,14 @@ export class TiltClient {
 
         const resources = viewResp.uiResources.map(convertResource);
         const withButtons = associateButtons(resources, viewResp.uiButtons);
+
+        console.log(
+          "button updates",
+          viewResp.uiButtons.map(({ metadata: { name, resourceVersion } }) => ({
+            name,
+            resourceVersion,
+          })),
+        );
 
         onData({
           resources: withButtons,
@@ -263,7 +272,8 @@ export class TiltClient {
           value: (defined ? value : spec.bool.defaultValue) === true,
         };
       } else if (spec.hidden) {
-        status.hidden = { value: spec.hidden.value ?? "" };
+        // Allow overriding hidden input values (needed for disable toggle)
+        status.hidden = { value: defined ? value : (spec.hidden.value ?? "") };
       } else if (spec.choice) {
         status.choice = {
           value: defined ? value : (spec.choice.choices?.[0] ?? ""),
@@ -282,6 +292,11 @@ export class TiltClient {
         inputs: inputStatuses,
       },
     };
+
+    console.log("buttonclick payload", {
+      name: payload.metadata.name,
+      resourceVersion: payload.metadata.resourceVersion,
+    });
 
     const response = await fetch(
       `${this.baseURL}/proxy/apis/tilt.dev/v1alpha1/uibuttons/${button.metadata.name}/status`,
@@ -303,6 +318,11 @@ export class TiltClient {
 
     // Return the updated button with new resourceVersion from server
     const updatedButton: UIButton = await response.json();
+
+    console.log("buttonclick response", {
+      name: updatedButton.metadata.name,
+      resourceVersion: updatedButton.metadata.resourceVersion,
+    });
     return updatedButton;
   }
 

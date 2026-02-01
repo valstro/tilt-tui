@@ -110,7 +110,7 @@ function buildTreeNodes(
 }
 
 export function Tree() {
-  const { state, selectResource, triggerResource } = useTilt();
+  const { state, selectResource, triggerResource, toggleResourceDisable } = useTilt();
   const { state: focusState, setActivePane } = useFocus();
   const theme = defaultTheme;
 
@@ -156,6 +156,13 @@ export function Tree() {
           const currentNode = nodes()[cursor()];
           if (currentNode?.type === "resource" && currentNode.resource) {
             triggerResource(currentNode.resource.name);
+          }
+          break;
+        }
+        case Commands.RESOURCE_DISABLE_TOGGLE: {
+          const currentNode = nodes()[cursor()];
+          if (currentNode?.type === "resource" && currentNode.resource) {
+            toggleResourceDisable(currentNode.resource.name);
           }
           break;
         }
@@ -262,15 +269,20 @@ function ResourceNode(props: {
   theme: Theme;
 }) {
   const r = () => props.node.resource!;
+  const isDisabled = createMemo(() => r().isDisabled);
 
-  // Runtime status color for line 1 border
+  // Runtime status color for line 1 border (muted if disabled)
   const runtimeColor = createMemo(() =>
-    runtimeStatusColor(props.theme, r().runtimeStatus),
+    isDisabled()
+      ? props.theme.textMuted
+      : runtimeStatusColor(props.theme, r().runtimeStatus),
   );
 
-  // Build status color for line 2 border
+  // Build status color for line 2 border (muted if disabled)
   const buildColor = createMemo(() =>
-    buildStatusColor(props.theme, r().updateStatus),
+    isDisabled()
+      ? props.theme.textMuted
+      : buildStatusColor(props.theme, r().updateStatus),
   );
 
   const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));
@@ -287,6 +299,17 @@ function ResourceNode(props: {
     return parts.join(" · ") || "—";
   });
 
+  // Text color: muted when disabled, otherwise normal
+  const nameColor = createMemo(() => {
+    if (props.isSelected) return props.theme.background;
+    return isDisabled() ? props.theme.textMuted : props.theme.text;
+  });
+
+  const subheadingColor = createMemo(() => {
+    if (props.isSelected) return props.theme.background;
+    return props.theme.textMuted; // Always muted for subheading
+  });
+
   return (
     <box flexDirection="column" marginLeft={1}>
       {/* Line 1: Resource name - runtime status border */}
@@ -299,7 +322,7 @@ function ResourceNode(props: {
         paddingLeft={1}
       >
         <text
-          fg={props.isSelected ? props.theme.background : props.theme.text}
+          fg={nameColor()}
           attributes={props.isSelected ? 1 : 0}
         >
           {r().name}
@@ -318,9 +341,7 @@ function ResourceNode(props: {
         borderColor={buildColor()}
         paddingLeft={1}
       >
-        <text
-          fg={props.isSelected ? props.theme.background : props.theme.textMuted}
-        >
+        <text fg={subheadingColor()}>
           {subheading()}
         </text>
       </box>

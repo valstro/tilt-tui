@@ -111,6 +111,12 @@ export const keymap: KeyMapping[] = [
     command: Commands.RELOAD_RESOURCE,
     description: "reload resource",
   },
+  {
+    modes: ["tree", "resource"],
+    key: "d",
+    command: Commands.RESOURCE_DISABLE_TOGGLE,
+    description: "toggle disable",
+  },
 
   // Resource-specific
   {
