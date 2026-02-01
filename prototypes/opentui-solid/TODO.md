@@ -15,3 +15,5 @@
 - links
 - command palate
 - search
+- log filtering
+  - filter by type of log (build, cluster, cmd, disabletoggle-\*, tiltfile)

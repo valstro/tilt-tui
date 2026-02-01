@@ -4,16 +4,20 @@ import type {
   ViewResponse,
   Resource,
   LogEntry,
-  LogSegment,
-  resourceFromAPIResource,
-  associateButtonsWithResources,
+  LogList,
   UIButton,
   UIInputStatus,
 } from "./types";
+import { resourceFromAPIResource as convertResource } from "./types";
 import {
-  resourceFromAPIResource as convertResource,
-  associateButtonsWithResources as associateButtons,
-} from "./types";
+  resource,
+  createSignal,
+  action,
+  call,
+  type Operation,
+  type Stream,
+  type Signal,
+} from "effection";
 
 const DEFAULT_HOST = "localhost";
 const DEFAULT_PORT = 10350;
@@ -23,9 +27,29 @@ export interface TiltClientOptions {
   port?: number;
 }
 
-export interface TiltData {
+export interface ResourcesUpdate {
   resources: Resource[];
-  buttons: any[];
+}
+
+export interface ButtonsUpdate {
+  buttons: UIButton[];
+}
+
+/** @deprecated Use ResourcesUpdate instead */
+export type TiltData = ResourcesUpdate;
+
+/** Logs update from WebSocket */
+export interface LogsUpdate {
+  logList: LogList;
+  /** Parsed log entries keyed by resource name */
+  entries: Map<string, LogEntry[]>;
+}
+
+/** Combined streams returned by useTiltStreams() */
+export interface TiltStreams {
+  resources: Stream<ResourcesUpdate, void>;
+  buttons: Stream<ButtonsUpdate, void>;
+  logs: Stream<LogsUpdate, void>;
 }
 
 export class TiltClient {
@@ -51,160 +75,129 @@ export class TiltClient {
   }
 
   /**
-   * Subscribe to data updates via websocket connection
-   * Returns an object with the websocket and a way to close it
+   * Get the WebSocket URL with authentication token.
+   * This is an Effection operation that fetches the token.
    */
-  async subscribe(
-    onData: (data: TiltData) => void,
-    onError?: (error: Error) => void,
-    onClose?: () => void,
-    signal?: AbortSignal,
-  ): Promise<{ close: () => void }> {
-    const token = await this.getWebsocketToken();
-    const wsURL = `${this.wsURL}/ws/view?csrf=${encodeURIComponent(token)}`;
+  private *getWebSocketURL(): Operation<string> {
+    const token: string = yield* call(() => this.getWebsocketToken());
+    return `${this.wsURL}/ws/view?csrf=${encodeURIComponent(token)}`;
+  }
 
-    const ws = new WebSocket(wsURL);
+  /**
+   * Create two subscription-based streams from a single WebSocket connection.
+   *
+   * Returns an Operation that yields TiltStreams with:
+   * - `resources`: Subscription for resource/button updates
+   * - `logs`: Subscription for log updates
+   *
+   * Both subscriptions share the same WebSocket connection. The connection
+   * is automatically closed when the operation's scope exits (structured concurrency).
+   *
+   * Usage with Effection:
+   * ```
+   * const streams = yield* client.useTiltStreams();
+   *
+   * yield* spawn(function*() {
+   *   for (const update of yield* each(streams.resources)) {
+   *     // handle resources serially
+   *     yield* each.next();
+   *   }
+   * });
+   *
+   * yield* spawn(function*() {
+   *   for (const update of yield* each(streams.logs)) {
+   *     // handle logs serially
+   *     yield* each.next();
+   *   }
+   * });
+   *
+   * yield* suspend(); // keep alive until scope exits
+   * ```
+   */
+  *useTiltStreams(): Operation<TiltStreams> {
+    const wsURL: string = yield* this.getWebSocketURL();
 
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        ws.close();
-      });
-    }
+    return yield* resource<TiltStreams>(function* (provide) {
+      // Create two signals - one for resources, one for logs
+      const resourcesSignal: Signal<ResourcesUpdate, void> = createSignal<
+        ResourcesUpdate,
+        void
+      >();
+      const logsSignal: Signal<LogsUpdate, void> = createSignal<
+        LogsUpdate,
+        void
+      >();
+      const buttonsSignal: Signal<ButtonsUpdate, void> = createSignal<
+        ButtonsUpdate,
+        void
+      >();
 
-    ws.onmessage = (event) => {
-      console.log("WS MESSAGE");
+      const ws = new WebSocket(wsURL);
+
+      ws.onmessage = (event) => {
+        try {
+          const viewResp: ViewResponse = JSON.parse(event.data);
+
+          if (!viewResp.isComplete) {
+            // Wait for complete message
+            return;
+          }
+
+          if (viewResp.uiResources) {
+            const resources = viewResp.uiResources.map(convertResource);
+            resourcesSignal.send({
+              resources,
+            });
+          }
+
+          if (viewResp.uiButtons) {
+            buttonsSignal.send({
+              buttons: viewResp.uiButtons,
+            });
+          }
+
+          // Send logs update if logList is present
+          if (viewResp.logList) {
+            const entries = parseLogList(viewResp.logList);
+            logsSignal.send({
+              logList: viewResp.logList,
+              entries,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to parse WebSocket message:", err);
+        }
+      };
+
+      ws.onerror = () => {
+        console.error("WebSocket error");
+      };
+
+      ws.onclose = () => {
+        resourcesSignal.close();
+        buttonsSignal.close();
+        logsSignal.close();
+      };
+
+      yield* waitForWebSocketOpen(ws);
+
       try {
-        const viewResp: ViewResponse = JSON.parse(event.data);
-
-        if (!viewResp.isComplete) {
-          return; // Wait for complete message
-        }
-
-        const resources = viewResp.uiResources.map(convertResource);
-        const withButtons = associateButtons(resources, viewResp.uiButtons);
-
-        console.log(
-          "button updates",
-          viewResp.uiButtons.map(({ metadata: { name, resourceVersion } }) => ({
-            name,
-            resourceVersion,
-          })),
-        );
-
-        onData({
-          resources: withButtons,
-          buttons: viewResp.uiButtons,
+        // Provide both subscriptions to the caller
+        yield* provide({
+          resources: resourcesSignal,
+          buttons: buttonsSignal,
+          logs: logsSignal,
         });
-      } catch (err) {
-        onError?.(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        // Cleanup: close WebSocket when scope exits
+        if (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        ) {
+          ws.close();
+        }
       }
-    };
-
-    ws.onerror = () => {
-      onError?.(new Error("WebSocket error"));
-    };
-
-    ws.onclose = () => {
-      onClose?.();
-    };
-
-    return {
-      close: () => ws.close(),
-    };
-  }
-
-  /**
-   * Get initial data via websocket connection (one-shot)
-   */
-  async getInitialData(signal?: AbortSignal): Promise<TiltData> {
-    return new Promise((resolve, reject) => {
-      let subscription: { close: () => void } | null = null;
-
-      this.subscribe(
-        (data) => {
-          subscription?.close();
-          resolve(data);
-        },
-        (error) => {
-          subscription?.close();
-          reject(error);
-        },
-        undefined,
-        signal,
-      )
-        .then((sub) => {
-          subscription = sub;
-        })
-        .catch(reject);
     });
-  }
-
-  /**
-   * Get resources via HTTP polling
-   */
-  async getResources(signal?: AbortSignal): Promise<Resource[]> {
-    const response = await fetch(`${this.baseURL}/api/view`, { signal });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch resources: ${response.status}`);
-    }
-
-    const viewResp: ViewResponse = await response.json();
-    return viewResp.uiResources.map(convertResource);
-  }
-
-  /**
-   * Get logs for a specific resource
-   */
-  async getLogs(
-    resourceName: string,
-    signal?: AbortSignal,
-  ): Promise<LogEntry[]> {
-    let path = "/api/view";
-    if (resourceName && resourceName !== "(Tiltfile)") {
-      path = `/api/view?name=${encodeURIComponent(resourceName)}`;
-    }
-
-    const response = await fetch(`${this.baseURL}${path}`, { signal });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch logs: ${response.status}`);
-    }
-
-    const viewResp: ViewResponse = await response.json();
-
-    if (!viewResp.logList) {
-      return [];
-    }
-
-    // Build span to manifest mapping
-    const spanToManifest = new Map<string, string>();
-    if (viewResp.logList.spans) {
-      for (const [spanId, span] of Object.entries(viewResp.logList.spans)) {
-        if (span) {
-          spanToManifest.set(spanId, span.manifestName);
-        }
-      }
-    }
-
-    const entries: LogEntry[] = [];
-    for (const seg of viewResp.logList.segments) {
-      // Filter by resource if specified
-      if (resourceName) {
-        const manifest = spanToManifest.get(seg.spanId);
-        if (manifest !== resourceName && manifest) {
-          continue;
-        }
-      }
-
-      entries.push({
-        timestamp: new Date(seg.time),
-        spanId: seg.spanId,
-        level: seg.level,
-        text: seg.text.replace(/\n$/, ""),
-        source: spanToManifest.get(seg.spanId) ?? "",
-      });
-    }
-
-    return entries;
   }
 
   /**
@@ -352,4 +345,86 @@ export class TiltClient {
           : "xdg-open";
     spawn([cmd, url], { stdout: "ignore", stderr: "ignore" });
   }
+}
+
+/**
+ * Wait for a WebSocket to open using action() for callback-style API.
+ */
+function waitForWebSocketOpen(ws: WebSocket): Operation<void> {
+  if (ws.readyState === WebSocket.OPEN) {
+    return {
+      *[Symbol.iterator]() {
+        return;
+      },
+    };
+  }
+
+  return action<void>((resolve, reject) => {
+    const onOpen = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      reject(new Error("WebSocket failed to connect"));
+    };
+
+    const onClose = () => {
+      cleanup();
+      reject(new Error("WebSocket closed before opening"));
+    };
+
+    const cleanup = () => {
+      ws.removeEventListener("open", onOpen);
+      ws.removeEventListener("error", onError);
+      ws.removeEventListener("close", onClose);
+    };
+
+    ws.addEventListener("open", onOpen);
+    ws.addEventListener("error", onError);
+    ws.addEventListener("close", onClose);
+
+    // Return cleanup function for when operation is halted
+    return cleanup;
+  });
+}
+
+/**
+ * Parse a LogList from the WebSocket into LogEntry objects grouped by resource name.
+ * Returns a Map where keys are resource names and values are arrays of log entries.
+ */
+export function parseLogList(logList: LogList): Map<string, LogEntry[]> {
+  const result = new Map<string, LogEntry[]>();
+
+  if (!logList.segments || !logList.spans) {
+    return result;
+  }
+
+  // Build span to manifest mapping
+  const spanToManifest = new Map<string, string>();
+  for (const [spanId, span] of Object.entries(logList.spans)) {
+    if (span) {
+      spanToManifest.set(spanId, span.manifestName);
+    }
+  }
+
+  // Parse segments into LogEntry objects grouped by resource
+  for (const seg of logList.segments) {
+    const resourceName = spanToManifest.get(seg.spanId) ?? "";
+
+    const entry: LogEntry = {
+      timestamp: new Date(seg.time),
+      spanId: seg.spanId,
+      level: seg.level,
+      text: seg.text.replace(/\n$/, ""),
+      source: resourceName,
+    };
+
+    const existing = result.get(resourceName) ?? [];
+    existing.push(entry);
+    result.set(resourceName, existing);
+  }
+
+  return result;
 }

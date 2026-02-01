@@ -1,33 +1,57 @@
 // Tilt data context provider
+// Uses Effection for structured concurrency and serial WebSocket message processing
 
-import { createContext, useContext, onMount, onCleanup, type ParentProps } from "solid-js"
-import { createStore, produce, reconcile } from "solid-js/store"
-import { TiltClient } from "../tilt/client"
-import type { Resource, LogEntry } from "../tilt/types"
-import type { ConnectionStatus } from "../theme/theme"
+import {
+  createContext,
+  useContext,
+  onMount,
+  onCleanup,
+  type ParentProps,
+} from "solid-js";
+import { createStore, produce } from "solid-js/store";
+import {
+  run,
+  each,
+  spawn,
+  sleep,
+  type Task,
+  type Operation,
+  all,
+} from "effection";
+import { TiltClient } from "../tilt/client";
+import {
+  type Resource,
+  type LogEntry,
+  type UIButton,
+  ButtonAction,
+  buttonActionFromUIButton,
+  isDisableToggleButton,
+} from "../tilt/types";
+import type { ConnectionStatus } from "../theme/theme";
 
 interface TiltState {
-  connectionStatus: ConnectionStatus
-  clusterContext: string
-  namespace: string
-  resources: Resource[]
-  logs: Record<string, LogEntry[]>
-  selectedResource: string | null
+  connectionStatus: ConnectionStatus;
+  clusterContext: string;
+  namespace: string;
+  resources: Resource[];
+  logs: Record<string, LogEntry[]>;
+  selectedResource: string | null;
 }
 
 interface TiltContextValue {
-  state: TiltState
-  client: TiltClient
-  selectResource: (name: string) => void
-  triggerResource: (name: string) => Promise<void>
-  toggleResourceDisable: (name: string) => Promise<void>
-  refreshLogs: (resourceName: string) => Promise<void>
+  state: TiltState;
+  client: TiltClient;
+  selectResource: (name: string) => void;
+  triggerResource: (name: string) => Promise<void>;
+  toggleResourceDisable: (name: string) => Promise<void>;
 }
 
-const TiltContext = createContext<TiltContextValue>()
+const TiltContext = createContext<TiltContextValue>();
 
-export function TiltProvider(props: ParentProps<{ host?: string; port?: number }>) {
-  const client = new TiltClient({ host: props.host, port: props.port })
+export function TiltProvider(
+  props: ParentProps<{ host?: string; port?: number }>,
+) {
+  const client = new TiltClient({ host: props.host, port: props.port });
 
   const [state, setState] = createStore<TiltState>({
     connectionStatus: "connecting",
@@ -36,111 +60,178 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     resources: [],
     logs: {},
     selectedResource: null,
-  })
+  });
 
-  let subscription: { close: () => void } | null = null
-  let abortController: AbortController | null = null
-  let logPollInterval: ReturnType<typeof setInterval> | null = null
-  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+  // Task handle for the main Effection operation
+  let mainTask: Task<void> | null = null;
 
+  /**
+   * Update resources in the store.
+   * This is called for each WebSocket message, processed serially.
+   */
   function updateResources(resources: Resource[]) {
     setState(
       produce((s) => {
-        s.connectionStatus = "connected"
-        s.resources = resources
+        s.connectionStatus = "connected";
+        s.resources = resources;
 
         // Extract cluster context and namespace from resources
         for (const r of resources) {
           if (r.raw?.metadata?.annotations?.["tilt.dev/cluster"]) {
-            s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"]
+            s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"];
           }
           if (r.raw?.metadata?.labels?.["tilt.dev/namespace"]) {
-            s.namespace = r.raw.metadata.labels["tilt.dev/namespace"]
+            s.namespace = r.raw.metadata.labels["tilt.dev/namespace"];
           }
         }
 
         // Auto-select first resource if none selected
         if (!s.selectedResource && resources.length > 0) {
-          s.selectedResource = resources[0].name
+          s.selectedResource = resources[0].name;
         }
-      })
-    )
+      }),
+    );
   }
 
-  async function connect() {
-    abortController = new AbortController()
-    setState("connectionStatus", "connecting")
+  function updateButtons(buttons: UIButton[]) {
+    setState(
+      produce((s) => {
+        const { resources } = s;
 
-    try {
-      subscription = await client.subscribe(
-        // onData - called whenever Tilt sends an update
-        (data) => {
-          updateResources(data.resources)
-        },
-        // onError
-        (error) => {
-          console.error("WebSocket error:", error)
-          setState("connectionStatus", "disconnected")
-          scheduleReconnect()
-        },
-        // onClose
-        () => {
-          if (state.connectionStatus === "connected") {
-            setState("connectionStatus", "disconnected")
-            scheduleReconnect()
+        const buttonMap = new Map<string, ButtonAction[]>();
+        const disableToggleMap = new Map<string, UIButton>();
+
+        for (const btn of buttons) {
+          const resourceName =
+            btn.spec.location?.componentType === "Resource"
+              ? btn.spec.location.componentID
+              : "";
+          if (resourceName) {
+            // Check if this is a disable toggle button
+            if (isDisableToggleButton(btn)) {
+              disableToggleMap.set(resourceName, btn);
+            } else {
+              // Regular button - add to buttons list
+              const existing = buttonMap.get(resourceName) ?? [];
+              existing.push(buttonActionFromUIButton(btn));
+              buttonMap.set(resourceName, existing);
+            }
           }
-        },
-        abortController.signal,
-      )
-    } catch (err) {
-      console.error("Failed to connect:", err)
-      setState("connectionStatus", "disconnected")
-      scheduleReconnect()
-    }
+        }
+
+        for (const resource of resources) {
+          const btns = buttonMap.get(resource.name);
+          if (btns) {
+            resource.buttons = btns;
+          }
+
+          // Assign disable toggle button if it exists
+          const disableToggle = disableToggleMap.get(resource.name);
+          if (disableToggle) {
+            resource.disableToggleButton = disableToggle;
+          }
+        }
+      }),
+    );
   }
 
-  function scheduleReconnect() {
-    if (reconnectTimeout) return // Already scheduled
-    reconnectTimeout = setTimeout(() => {
-      reconnectTimeout = null
-      connect()
-    }, 3000)
+  /**
+   * Update logs in the store from WebSocket stream.
+   * Merges new log entries with existing ones by resource name.
+   */
+  function updateLogs(entries: Map<string, LogEntry[]>) {
+    setState(
+      produce((s) => {
+        for (const [resourceName, logEntries] of entries) {
+          // Replace logs for each resource that has new entries
+          // The WebSocket sends the full log list, so we replace rather than append
+          s.logs[resourceName] = logEntries;
+        }
+      }),
+    );
   }
 
-  async function refreshLogs(resourceName: string) {
-    try {
-      const logs = await client.getLogs(resourceName, abortController?.signal)
-      setState("logs", resourceName, logs)
-    } catch (err) {
-      console.error("Failed to fetch logs:", err)
+  /**
+   * Main Effection operation that manages the WebSocket connection.
+   * Handles reconnection and processes messages serially using `each()`.
+   *
+   * Uses useTiltStreams() to get two subscriptions from one WebSocket:
+   * - resources: for resource/button updates
+   * - logs: for log updates (replaces polling)
+   */
+  function* mainOperation(): Operation<void> {
+    while (true) {
+      setState("connectionStatus", "connecting");
+
+      try {
+        // Get both streams from a single WebSocket connection
+        const { resources, buttons, logs } = yield* client.useTiltStreams();
+
+        setState("connectionStatus", "connected");
+
+        // Spawn both consumers concurrently
+        // When WebSocket disconnects, both streams close and tasks complete
+        const resourcesTask = yield* spawn(function* () {
+          for (const update of yield* each(resources)) {
+            updateResources(update.resources);
+            yield* each.next();
+          }
+        });
+
+        const buttonsTask = yield* spawn(function* () {
+          for (const update of yield* each(buttons)) {
+            updateButtons(update.buttons);
+            yield* each.next();
+          }
+        });
+
+        const logsTask = yield* spawn(function* () {
+          for (const update of yield* each(logs)) {
+            updateLogs(update.entries);
+            yield* each.next();
+          }
+        });
+
+        // Wait for all streams to close (indicates WebSocket disconnect)
+        // When this returns, the scope exits and logsTask is automatically cleaned up
+        yield* all([resourcesTask, buttonsTask, logsTask]);
+
+        // Stream closed normally - reconnect
+        console.log("WebSocket stream closed, reconnecting...");
+      } catch (err) {
+        console.error("WebSocket error:", err);
+      }
+
+      // Connection lost or errored - wait before reconnecting
+      setState("connectionStatus", "disconnected");
+      yield* sleep(3000);
     }
   }
 
   function selectResource(name: string) {
-    setState("selectedResource", name)
-    refreshLogs(name)
+    setState("selectedResource", name);
   }
 
   async function triggerResource(name: string) {
     try {
-      await client.triggerResource(name, abortController?.signal)
+      await client.triggerResource(name);
     } catch (err) {
-      console.error("Failed to trigger resource:", err)
+      console.error("Failed to trigger resource:", err);
     }
   }
 
   async function toggleResourceDisable(name: string) {
-    const resourceIndex = state.resources.findIndex((r) => r.name === name)
+    const resourceIndex = state.resources.findIndex((r) => r.name === name);
     if (resourceIndex === -1) {
-      console.error(`Resource not found: ${name}`)
-      return
+      console.error(`Resource not found: ${name}`);
+      return;
     }
 
-    const resource = state.resources[resourceIndex]
-    const button = resource.disableToggleButton
+    const resource = state.resources[resourceIndex];
+    const button = resource.disableToggleButton;
     if (!button) {
-      console.error(`No disable toggle button found for resource: ${name}`)
-      return
+      console.error(`No disable toggle button found for resource: ${name}`);
+      return;
     }
 
     try {
@@ -148,41 +239,34 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
       // - "on" when resource is enabled (click to disable)
       // - "off" when resource is disabled (click to enable)
       // So we don't need to override it - just click the button with its existing values
-      const updatedButton = await client.clickButton(button, {}, abortController?.signal)
-      
+      const updatedButton = await client.clickButton(button, {});
+
       // Update the button in the store with the new resourceVersion
       // This prevents 409 Conflict errors on subsequent clicks before WebSocket updates
-      setState("resources", resourceIndex, "disableToggleButton", updatedButton)
+      setState(
+        "resources",
+        resourceIndex,
+        "disableToggleButton",
+        updatedButton,
+      );
     } catch (err) {
-      console.error(`Failed to toggle disable for resource ${name}:`, err)
+      console.error(`Failed to toggle disable for resource ${name}:`, err);
     }
   }
 
   onMount(() => {
-    connect()
+    // Start the main Effection operation using run()
+    // run() embeds Effection into existing async code
+    mainTask = run(mainOperation);
+  });
 
-    // Poll for logs every 2 seconds (websocket handles resource updates)
-    logPollInterval = setInterval(() => {
-      if (state.selectedResource) {
-        refreshLogs(state.selectedResource)
-      }
-    }, 2000)
-  })
-
-  onCleanup(() => {
-    if (subscription) {
-      subscription.close()
+  onCleanup(async () => {
+    // Halt the main task - this will close the WebSocket via structured concurrency
+    if (mainTask) {
+      // halt() returns a Future - we must observe it to ensure shutdown completes
+      await mainTask.halt();
     }
-    if (logPollInterval) {
-      clearInterval(logPollInterval)
-    }
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout)
-    }
-    if (abortController) {
-      abortController.abort()
-    }
-  })
+  });
 
   const value: TiltContextValue = {
     state,
@@ -190,16 +274,17 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     selectResource,
     triggerResource,
     toggleResourceDisable,
-    refreshLogs,
-  }
+  };
 
-  return <TiltContext.Provider value={value}>{props.children}</TiltContext.Provider>
+  return (
+    <TiltContext.Provider value={value}>{props.children}</TiltContext.Provider>
+  );
 }
 
 export function useTilt() {
-  const context = useContext(TiltContext)
+  const context = useContext(TiltContext);
   if (!context) {
-    throw new Error("useTilt must be used within a TiltProvider")
+    throw new Error("useTilt must be used within a TiltProvider");
   }
-  return context
+  return context;
 }

@@ -7,6 +7,7 @@
       "dependencies": {
         "@opentui/core": "0.1.75",
         "@opentui/solid": "0.1.75",
+        "effection": "^4.0.2",
         "solid-js": "1.9.9",
       },
       "devDependencies": {
@@ -213,6 +214,8 @@
     "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
     "diff": ["diff@8.0.2", "", {}, "sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg=="],
+
+    "effection": ["effection@4.0.2", "", {}, "sha512-O8WMGP10nPuJDwbNGILcaCNWS+CvDYjcdsUSD79nWZ+WtUQ8h1MEV7JJwCSZCSeKx8+TdEaZ/8r6qPTR2o/o8w=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.282", "", {}, "sha512-FCPkJtpst28UmFzd903iU7PdeVTfY0KAeJy+Lk0GLZRwgwYHn/irRcaCbQQOmr5Vytc/7rcavsYLvTM8RiHYhQ=="],
 

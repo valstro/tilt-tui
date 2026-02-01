@@ -93,53 +93,6 @@ export function focusBorder(
   };
 }
 
-// Status icons
-
-export function runtimeStatusIcon(status: string): string {
-  switch (status) {
-    case "ok":
-      return "●";
-    case "pending":
-    case "in_progress":
-      return "◐";
-    case "error":
-      return "✗";
-    case "not_applicable":
-      return "○";
-    default:
-      return "○";
-  }
-}
-
-export function buildStatusIcon(status: string): string {
-  switch (status) {
-    case "ok":
-      return "✓";
-    case "pending":
-    case "in_progress":
-      return "⟳";
-    case "error":
-      return "✗";
-    case "not_applicable":
-      return "−";
-    default:
-      return "−";
-  }
-}
-
-export function statusIcon(status: string): string {
-  switch (status) {
-    case "ok":
-      return "✓";
-    case "pending":
-      return "●";
-    case "error":
-      return "✗";
-    default:
-      return "•";
-  }
-}
-
 // Status colors
 
 export function runtimeStatusColor(theme: Theme, status: string): string {
