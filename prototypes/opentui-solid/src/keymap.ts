@@ -7,8 +7,14 @@ export const keymap: KeyMapping[] = [
   // App-level commands
   {
     modes: ["app"],
+    key: "p",
+    modifiers: { ctrl: true },
+    command: Commands.PALETTE_OPEN,
+    description: "palette",
+  },
+  {
+    modes: ["app"],
     key: "q",
-    modifiers: { shift: true },
     command: Commands.APP_QUIT,
     description: "quit",
   },

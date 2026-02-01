@@ -1,75 +1,84 @@
 // Focus management context provider
 
-import { createContext, useContext, createSignal, type ParentProps } from "solid-js"
-import { createStore } from "solid-js/store"
+import {
+  createContext,
+  useContext,
+  createSignal,
+  type ParentProps,
+  Setter,
+} from "solid-js";
+import { createStore } from "solid-js/store";
 
-export type Pane = "tree" | "resource"
+export type Pane = "tree" | "resource";
 
 interface FocusState {
-  activePane: Pane
+  activePane: Pane;
 }
 
 interface FocusContextValue {
-  state: FocusState
-  setActivePane: (pane: Pane) => void
-  cyclePane: () => void
-  cyclePaneReverse: () => void
-  sidebarVisible: () => boolean
-  toggleSidebar: () => void
+  state: FocusState;
+  setActivePane: (pane: Pane) => void;
+  cyclePane: () => void;
+  cyclePaneReverse: () => void;
+  sidebarVisible: () => boolean;
+  toggleSidebar: () => void;
+  paletteOpen: () => boolean;
+  setPaletteOpen: Setter<boolean>;
 }
 
-const FocusContext = createContext<FocusContextValue>()
+const FocusContext = createContext<FocusContextValue>();
 
 export function FocusProvider(props: ParentProps) {
   const [state, setState] = createStore<FocusState>({
     activePane: "tree",
-  })
+  });
 
-  // Sidebar visibility state - starts open
-  const [sidebarOpen, setSidebarOpen] = createSignal(true)
+  const [paletteOpen, setPaletteOpen] = createSignal(false);
+
+  const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
   function setActivePane(pane: Pane) {
-    setState("activePane", pane)
+    setState("activePane", pane);
   }
 
   function cyclePane() {
     setState("activePane", (current) => {
-      const next = current === "tree" ? "resource" : "tree"
+      const next = current === "tree" ? "resource" : "tree";
       // Expand sidebar when focusing tree
       if (next === "tree" && !sidebarOpen()) {
-        setSidebarOpen(true)
+        setSidebarOpen(true);
       }
-      return next
-    })
+      return next;
+    });
   }
 
   function cyclePaneReverse() {
     setState("activePane", (current) => {
-      const next = current === "tree" ? "resource" : "tree"
+      const next = current === "tree" ? "resource" : "tree";
       // Expand sidebar when focusing tree
       if (next === "tree" && !sidebarOpen()) {
-        setSidebarOpen(true)
+        setSidebarOpen(true);
       }
-      return next
-    })
+      return next;
+    });
   }
 
   function sidebarVisible() {
-    return sidebarOpen()
+    return sidebarOpen();
   }
 
   function toggleSidebar() {
     setSidebarOpen((prev) => {
-      const newValue = !prev
+      const newValue = !prev;
       if (newValue) {
         // When showing sidebar, focus tree
-        setState("activePane", "tree")
+        setState("activePane", "tree");
       } else {
         // When hiding sidebar, focus resource pane since tree is no longer visible
-        setState("activePane", "resource")
+        setState("activePane", "resource");
       }
-      return newValue
-    })
+      return newValue;
+    });
   }
 
   const value: FocusContextValue = {
@@ -79,15 +88,21 @@ export function FocusProvider(props: ParentProps) {
     cyclePaneReverse,
     sidebarVisible,
     toggleSidebar,
-  }
+    paletteOpen,
+    setPaletteOpen,
+  };
 
-  return <FocusContext.Provider value={value}>{props.children}</FocusContext.Provider>
+  return (
+    <FocusContext.Provider value={value}>
+      {props.children}
+    </FocusContext.Provider>
+  );
 }
 
 export function useFocus() {
-  const context = useContext(FocusContext)
+  const context = useContext(FocusContext);
   if (!context) {
-    throw new Error("useFocus must be used within a FocusProvider")
+    throw new Error("useFocus must be used within a FocusProvider");
   }
-  return context
+  return context;
 }

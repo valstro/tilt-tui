@@ -1,24 +1,34 @@
 // Main App component
 
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { useRenderer } from "@opentui/solid";
 import { TiltProvider } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
 import { Header } from "./components/header";
 import { Tree } from "./components/tree";
 import { ResourceView } from "./components/resourceview";
+import {
+  CommandPalette,
+  type PaletteOption,
+} from "./components/command-palette";
 import { defaultTheme } from "./theme/theme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
 
 function AppContent() {
   const renderer = useRenderer();
-  const { cyclePane, cyclePaneReverse, sidebarVisible, toggleSidebar } =
-    useFocus();
+  const {
+    cyclePane,
+    cyclePaneReverse,
+    sidebarVisible,
+    toggleSidebar,
+    paletteOpen,
+    setPaletteOpen,
+  } = useFocus();
   const theme = defaultTheme;
 
-  // App-level keyboard handling
-  useKeyHandler("app", (command) => {
+  // Execute a command from the palette or keyboard
+  function executeCommand(command: string) {
     switch (command) {
       case Commands.APP_QUIT:
         renderer.destroy();
@@ -32,8 +42,21 @@ function AppContent() {
       case Commands.FOCUS_PREV:
         cyclePaneReverse();
         break;
+      case Commands.PALETTE_OPEN:
+        setPaletteOpen(true);
+        break;
     }
-  });
+  }
+
+  // App-level keyboard handling (disabled when palette is open)
+  useKeyHandler("app", executeCommand, () => !paletteOpen());
+
+  // Handle palette selection
+  function handlePaletteSelect(option: PaletteOption) {
+    if (option.command) {
+      executeCommand(option.command);
+    }
+  }
 
   return (
     <box
@@ -56,6 +79,14 @@ function AppContent() {
         </Show>
         <ResourceView />
       </box>
+
+      {/* Command Palette overlay */}
+      <Show when={paletteOpen()}>
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          onSelect={handlePaletteSelect}
+        />
+      </Show>
     </box>
   );
 }

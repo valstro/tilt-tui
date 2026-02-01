@@ -4,6 +4,7 @@
 import { useKeyboard } from "@opentui/solid";
 import { handleKeyEvent } from "./handler";
 import { Mode, Command } from "./keymap-utils";
+import { useFocus } from "@/context/focus";
 
 /**
  * Hook for handling keyboard events with declarative command mapping
@@ -16,11 +17,13 @@ export function useKeyHandler(
   onCommand: (command: Command) => void,
   enabled: () => boolean = () => true,
 ) {
+  const { paletteOpen } = useFocus();
+
   useKeyboard((event) => {
     // Skip if not enabled (e.g., not focused)
     if (!enabled()) return;
 
-    const command = handleKeyEvent(event, mode);
+    const command = handleKeyEvent(event, mode, paletteOpen());
     if (command) {
       onCommand(command);
     }
