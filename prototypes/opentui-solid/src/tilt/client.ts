@@ -21,7 +21,7 @@ export interface TiltClientOptions {
   port?: number;
 }
 
-export interface InitialData {
+export interface TiltData {
   resources: Resource[];
   buttons: any[];
 }
@@ -49,50 +49,80 @@ export class TiltClient {
   }
 
   /**
-   * Get initial data via websocket connection
+   * Subscribe to data updates via websocket connection
+   * Returns an object with the websocket and a way to close it
    */
-  async getInitialData(signal?: AbortSignal): Promise<InitialData> {
+  async subscribe(
+    onData: (data: TiltData) => void,
+    onError?: (error: Error) => void,
+    onClose?: () => void,
+    signal?: AbortSignal,
+  ): Promise<{ close: () => void }> {
     const token = await this.getWebsocketToken();
     const wsURL = `${this.wsURL}/ws/view?csrf=${encodeURIComponent(token)}`;
 
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(wsURL);
+    const ws = new WebSocket(wsURL);
 
-      if (signal) {
-        signal.addEventListener("abort", () => {
-          ws.close();
-          reject(new Error("Aborted"));
-        });
-      }
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        ws.close();
+      });
+    }
 
-      ws.onmessage = (event) => {
-        try {
-          const viewResp: ViewResponse = JSON.parse(event.data);
+    ws.onmessage = (event) => {
+      try {
+        const viewResp: ViewResponse = JSON.parse(event.data);
 
-          if (!viewResp.isComplete) {
-            return; // Wait for complete message
-          }
-
-          const resources = viewResp.uiResources.map(convertResource);
-          const withButtons = associateButtons(resources, viewResp.uiButtons);
-
-          ws.close();
-          resolve({
-            resources: withButtons,
-            buttons: viewResp.uiButtons,
-          });
-        } catch (err) {
-          reject(err);
+        if (!viewResp.isComplete) {
+          return; // Wait for complete message
         }
-      };
 
-      ws.onerror = (event) => {
-        reject(new Error("WebSocket error"));
-      };
+        const resources = viewResp.uiResources.map(convertResource);
+        const withButtons = associateButtons(resources, viewResp.uiButtons);
 
-      ws.onclose = () => {
-        // Connection closed
-      };
+        onData({
+          resources: withButtons,
+          buttons: viewResp.uiButtons,
+        });
+      } catch (err) {
+        onError?.(err instanceof Error ? err : new Error(String(err)));
+      }
+    };
+
+    ws.onerror = () => {
+      onError?.(new Error("WebSocket error"));
+    };
+
+    ws.onclose = () => {
+      onClose?.();
+    };
+
+    return {
+      close: () => ws.close(),
+    };
+  }
+
+  /**
+   * Get initial data via websocket connection (one-shot)
+   */
+  async getInitialData(signal?: AbortSignal): Promise<TiltData> {
+    return new Promise((resolve, reject) => {
+      let subscription: { close: () => void } | null = null;
+
+      this.subscribe(
+        (data) => {
+          subscription?.close();
+          resolve(data);
+        },
+        (error) => {
+          subscription?.close();
+          reject(error);
+        },
+        undefined,
+        signal,
+      ).then((sub) => {
+        subscription = sub;
+      }).catch(reject);
     });
   }
 

@@ -11,6 +11,7 @@ import {
   For,
   on,
   Show,
+  untrack,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
@@ -52,8 +53,9 @@ export function CommandPalette(props: CommandPaletteProps) {
   let inputRef: InputRenderable | undefined;
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Build options from various sources
-  const options = createMemo((): PaletteOption[] => {
+  // Capture options once on mount using untrack to avoid reactive dependencies
+  // This ensures the palette content is stable while open
+  const initialOptions = untrack(() => {
     const result: PaletteOption[] = [];
     const selectedResource = tiltState.resources.find(
       (r) => r.name === tiltState.selectedResource,
@@ -61,13 +63,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 
     // Group 1: Links from selected resource
     if (selectedResource) {
-      // console.log(
-      //   "selectedResource",
-      //   JSON.stringify(selectedResource, null, 2),
-      // );
-
       for (const endpoint of selectedResource.endpoints) {
-        // Only show URL in description if name is different from URL
         const hasName = endpoint.name && endpoint.name !== endpoint.url;
         result.push({
           title: hasName ? endpoint.name : endpoint.url,
@@ -92,10 +88,9 @@ export function CommandPalette(props: CommandPaletteProps) {
       }
     }
 
-    // Group 3: Commands for app
+    // Group 3: Commands for app (static)
     const appBindings = getHelpMappingsForMode("app");
-
-    for (const mapping of [...appBindings]) {
+    for (const mapping of appBindings) {
       result.push({
         title: mapping.description,
         value: `command:${mapping.command}`,
@@ -107,6 +102,9 @@ export function CommandPalette(props: CommandPaletteProps) {
 
     return result;
   });
+
+  // Options returns the stable initial options
+  const options = () => initialOptions;
 
   // Filter options based on search
   const filtered = createMemo(() => {
@@ -149,8 +147,6 @@ export function CommandPalette(props: CommandPaletteProps) {
     for (const [_, opts] of grouped()) {
       result.push(...opts);
     }
-
-    console.log("flag", result);
     return result;
   });
 
@@ -217,7 +213,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       return;
     }
 
-    if (evt.name === "up" || evt.name === "k") {
+    if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
       move(-1);
       return;
@@ -251,9 +247,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       marginLeft={-30}
       width={60}
       backgroundColor={theme.contentPane}
-      border={true}
-      borderStyle="single"
-      borderColor={theme.border}
+      border={false}
       flexDirection="column"
     >
       {/* Header with title */}
@@ -265,7 +259,7 @@ export function CommandPalette(props: CommandPaletteProps) {
         justifyContent="space-between"
       >
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Command Palette
+          Commands
         </text>
         <text fg={theme.textMuted}>esc</text>
       </box>
@@ -274,7 +268,14 @@ export function CommandPalette(props: CommandPaletteProps) {
       <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
         <input
           ref={(r) => (inputRef = r)}
-          onInput={(e) => setStore("filter", e)}
+          onContentChange={(e) => {
+            if (inputRef?.value === "") {
+              setStore("filter", "");
+            }
+          }}
+          onInput={(e) => {
+            setStore("filter", e);
+          }}
           focusedBackgroundColor={theme.background}
           cursorColor={theme.primary}
           focusedTextColor={theme.text}
@@ -332,6 +333,8 @@ export function CommandPalette(props: CommandPaletteProps) {
                           }
                           wrapMode="none"
                           overflow="hidden"
+                          justifyContent="space-between"
+                          flexDirection="row"
                         >
                           {option.title}
                           <Show when={option.description}>

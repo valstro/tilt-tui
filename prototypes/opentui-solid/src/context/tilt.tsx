@@ -20,7 +20,6 @@ interface TiltContextValue {
   client: TiltClient
   selectResource: (name: string) => void
   triggerResource: (name: string) => Promise<void>
-  refreshResources: () => Promise<void>
   refreshLogs: (resourceName: string) => Promise<void>
 }
 
@@ -38,54 +37,73 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     selectedResource: null,
   })
 
-  let pollInterval: ReturnType<typeof setInterval> | null = null
+  let subscription: { close: () => void } | null = null
   let abortController: AbortController | null = null
+  let logPollInterval: ReturnType<typeof setInterval> | null = null
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 
-  async function fetchInitialData() {
+  function updateResources(resources: Resource[]) {
+    setState(
+      produce((s) => {
+        s.connectionStatus = "connected"
+        s.resources = resources
+
+        // Extract cluster context and namespace from resources
+        for (const r of resources) {
+          if (r.raw?.metadata?.annotations?.["tilt.dev/cluster"]) {
+            s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"]
+          }
+          if (r.raw?.metadata?.labels?.["tilt.dev/namespace"]) {
+            s.namespace = r.raw.metadata.labels["tilt.dev/namespace"]
+          }
+        }
+
+        // Auto-select first resource if none selected
+        if (!s.selectedResource && resources.length > 0) {
+          s.selectedResource = resources[0].name
+        }
+      })
+    )
+  }
+
+  async function connect() {
     abortController = new AbortController()
+    setState("connectionStatus", "connecting")
+
     try {
-      const data = await client.getInitialData(abortController.signal)
-      setState(
-        produce((s) => {
-          s.connectionStatus = "connected"
-          s.resources = data.resources
-
-          // Extract cluster context and namespace from resources
-          for (const r of data.resources) {
-            if (r.raw?.metadata?.annotations?.["tilt.dev/cluster"]) {
-              s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"]
-            }
-            if (r.raw?.metadata?.labels?.["tilt.dev/namespace"]) {
-              s.namespace = r.raw.metadata.labels["tilt.dev/namespace"]
-            }
+      subscription = await client.subscribe(
+        // onData - called whenever Tilt sends an update
+        (data) => {
+          updateResources(data.resources)
+        },
+        // onError
+        (error) => {
+          console.error("WebSocket error:", error)
+          setState("connectionStatus", "disconnected")
+          scheduleReconnect()
+        },
+        // onClose
+        () => {
+          if (state.connectionStatus === "connected") {
+            setState("connectionStatus", "disconnected")
+            scheduleReconnect()
           }
-
-          // Auto-select first resource if none selected
-          if (!s.selectedResource && data.resources.length > 0) {
-            s.selectedResource = data.resources[0].name
-          }
-        })
+        },
+        abortController.signal,
       )
-
-      // Fetch logs for selected resource
-      if (state.selectedResource) {
-        await refreshLogs(state.selectedResource)
-      }
     } catch (err) {
-      console.error("Failed to fetch initial data:", err)
+      console.error("Failed to connect:", err)
       setState("connectionStatus", "disconnected")
+      scheduleReconnect()
     }
   }
 
-  async function refreshResources() {
-    try {
-      const resources = await client.getResources(abortController?.signal)
-      setState("resources", reconcile(resources))
-      setState("connectionStatus", "connected")
-    } catch (err) {
-      console.error("Failed to refresh resources:", err)
-      setState("connectionStatus", "disconnected")
-    }
+  function scheduleReconnect() {
+    if (reconnectTimeout) return // Already scheduled
+    reconnectTimeout = setTimeout(() => {
+      reconnectTimeout = null
+      connect()
+    }, 3000)
   }
 
   async function refreshLogs(resourceName: string) {
@@ -105,28 +123,31 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
   async function triggerResource(name: string) {
     try {
       await client.triggerResource(name, abortController?.signal)
-      // Refresh after trigger
-      setTimeout(refreshResources, 500)
     } catch (err) {
       console.error("Failed to trigger resource:", err)
     }
   }
 
   onMount(() => {
-    fetchInitialData()
+    connect()
 
-    // Poll for updates every 5 seconds
-    pollInterval = setInterval(() => {
-      refreshResources()
+    // Poll for logs every 2 seconds (websocket handles resource updates)
+    logPollInterval = setInterval(() => {
       if (state.selectedResource) {
         refreshLogs(state.selectedResource)
       }
-    }, 5000)
+    }, 2000)
   })
 
   onCleanup(() => {
-    if (pollInterval) {
-      clearInterval(pollInterval)
+    if (subscription) {
+      subscription.close()
+    }
+    if (logPollInterval) {
+      clearInterval(logPollInterval)
+    }
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout)
     }
     if (abortController) {
       abortController.abort()
@@ -138,7 +159,6 @@ export function TiltProvider(props: ParentProps<{ host?: string; port?: number }
     client,
     selectResource,
     triggerResource,
-    refreshResources,
     refreshLogs,
   }
 
