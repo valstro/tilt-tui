@@ -106,10 +106,10 @@ export const keymap: KeyMapping[] = [
     showInHelp: false,
   },
   {
-    modes: ["tree"],
+    modes: ["tree", "resource"],
     key: "r",
-    command: Commands.TREE_TRIGGER,
-    description: "trigger",
+    command: Commands.RELOAD_RESOURCE,
+    description: "reload resource",
   },
 
   // Resource-specific

@@ -5,6 +5,7 @@ export const Commands = {
   SIDEBAR_TOGGLE: "sidebar.toggle",
   FOCUS_NEXT: "focus.next",
   FOCUS_PREV: "focus.prev",
+  RELOAD_RESOURCE: "resource.trigger",
 
   // Navigation (shared between tree and resource)
   NAV_DOWN: "nav.down",
@@ -14,7 +15,6 @@ export const Commands = {
 
   // Tree-specific
   TREE_SELECT: "tree.select",
-  TREE_TRIGGER: "tree.trigger",
 
   // Resource/scroll-specific
   SCROLL_LEFT: "scroll.left",

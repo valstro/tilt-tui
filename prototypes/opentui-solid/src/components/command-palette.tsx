@@ -24,6 +24,7 @@ import {
   formatKeyDisplay,
   type Command,
 } from "../keyboard/keymap-utils";
+import type { UIButton } from "../tilt/types";
 
 export interface PaletteOption {
   title: string;
@@ -32,7 +33,8 @@ export interface PaletteOption {
   category: string;
   command?: Command;
   url?: string;
-  buttonName?: string;
+  /** Raw UIButton for API calls */
+  button?: UIButton;
 }
 
 interface CommandPaletteProps {
@@ -82,7 +84,7 @@ export function CommandPalette(props: CommandPaletteProps) {
             value: `button:${button.name}`,
             description: `Trigger ${button.name}`,
             category: "Actions",
-            buttonName: button.name,
+            button: button.raw,
           });
         }
       }
@@ -187,16 +189,22 @@ export function CommandPalette(props: CommandPaletteProps) {
   }
 
   // Handle selection
-  function handleSelect() {
+  async function handleSelect() {
     const opt = selected();
     if (!opt) return;
 
     if (opt.url) {
       // Open URL in default browser
       client.openUrl(opt.url);
-    } else if (opt.buttonName) {
-      // Click UI button
-      client.clickButton(opt.buttonName);
+    } else if (opt.button) {
+      // Click UI button and update the cached button with new resourceVersion
+      try {
+        const updatedButton = await client.clickButton(opt.button);
+        // Update the cached button so subsequent clicks work
+        opt.button = updatedButton;
+      } catch (err) {
+        console.error("Failed to click button:", err);
+      }
     } else if (opt.command) {
       // Execute command
       props.onSelect(opt);
@@ -237,7 +245,7 @@ export function CommandPalette(props: CommandPaletteProps) {
     setTimeout(() => inputRef?.focus(), 10);
   });
 
-  const maxHeight = 15;
+  const maxHeight = 20;
 
   return (
     <box

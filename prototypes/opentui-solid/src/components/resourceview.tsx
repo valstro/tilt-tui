@@ -24,7 +24,7 @@ import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
 
 export function ResourceView() {
-  const { state } = useTilt();
+  const { state, triggerResource } = useTilt();
   const { state: focusState } = useFocus();
   const theme = defaultTheme;
 
@@ -131,6 +131,12 @@ export function ResourceView() {
             return newVal;
           });
           break;
+        case Commands.RELOAD_RESOURCE: {
+          if (state.selectedResource) {
+            triggerResource(state.selectedResource);
+          }
+          break;
+        }
       }
     },
     isFocused,

@@ -7,6 +7,8 @@ import type {
   LogSegment,
   resourceFromAPIResource,
   associateButtonsWithResources,
+  UIButton,
+  UIInputStatus,
 } from "./types";
 import {
   resourceFromAPIResource as convertResource,
@@ -120,9 +122,11 @@ export class TiltClient {
         },
         undefined,
         signal,
-      ).then((sub) => {
-        subscription = sub;
-      }).catch(reject);
+      )
+        .then((sub) => {
+          subscription = sub;
+        })
+        .catch(reject);
     });
   }
 
@@ -219,31 +223,74 @@ export class TiltClient {
   }
 
   /**
+   * Format a date for Tilt API (requires exactly 6 decimal places for microseconds)
+   * e.g., "2024-01-15T10:30:00.000000Z"
+   *
+   * see https://github.com/tilt-dev/tilt/blob/master/web/src/tiltApi.ts#L6
+   */
+  private formatApiTime(date: Date): string {
+    const iso = date.toISOString(); // "2024-01-15T10:30:00.123Z"
+    // Replace milliseconds (.123Z) with microseconds (.123000Z)
+    return iso.replace(/\.(\d{3})Z$/, ".$1000Z");
+  }
+
+  /**
    * Click a UI button
+   * @param button - The full UIButton object (includes resourceVersion needed for updates)
+   * @param inputValues - Optional input values for buttons with inputs
+   * @returns The updated UIButton with new resourceVersion
    */
   async clickButton(
-    buttonName: string,
-    inputs: Record<string, string> = {},
+    button: UIButton,
+    inputValues: Record<string, any> = {},
     signal?: AbortSignal,
-  ): Promise<void> {
-    const inputStatuses = Object.entries(inputs).map(([name, value]) => ({
-      name,
-      text: { value },
-    }));
+  ): Promise<UIButton> {
+    // Build input statuses from the button's input specs and provided values
+    const inputStatuses: UIInputStatus[] = [];
+    for (const spec of button.spec.inputs ?? []) {
+      const name = spec.name;
+      const value = inputValues[name];
+      const defined = value !== undefined;
 
+      const status: UIInputStatus = { name };
+
+      if (spec.text) {
+        status.text = {
+          value: defined ? value : (spec.text.defaultValue ?? ""),
+        };
+      } else if (spec.bool) {
+        status.bool = {
+          value: (defined ? value : spec.bool.defaultValue) === true,
+        };
+      } else if (spec.hidden) {
+        status.hidden = { value: spec.hidden.value ?? "" };
+      } else if (spec.choice) {
+        status.choice = {
+          value: defined ? value : (spec.choice.choices?.[0] ?? ""),
+        };
+      }
+
+      inputStatuses.push(status);
+    }
+
+    // Construct payload with full metadata (including resourceVersion) and updated status
     const payload = {
-      metadata: { name: buttonName },
+      metadata: { ...button.metadata },
       status: {
-        lastClickedAt: new Date().toISOString(),
+        ...button.status,
+        lastClickedAt: this.formatApiTime(new Date()),
         inputs: inputStatuses,
       },
     };
 
     const response = await fetch(
-      `${this.baseURL}/proxy/apis/tilt.dev/v1alpha1/uibuttons/${buttonName}/status`,
+      `${this.baseURL}/proxy/apis/tilt.dev/v1alpha1/uibuttons/${button.metadata.name}/status`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
         signal,
       },
@@ -253,6 +300,10 @@ export class TiltClient {
       const text = await response.text();
       throw new Error(`Failed to click button: ${response.status} - ${text}`);
     }
+
+    // Return the updated button with new resourceVersion from server
+    const updatedButton: UIButton = await response.json();
+    return updatedButton;
   }
 
   /**

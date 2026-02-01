@@ -179,6 +179,8 @@ export interface ButtonAction {
   resourceName: string
   disabled: boolean
   inputs: UIInputSpec[]
+  /** Raw UIButton for API calls - includes metadata.resourceVersion */
+  raw: UIButton
 }
 
 export interface Resource {
@@ -294,6 +296,7 @@ export function buttonActionFromUIButton(btn: UIButton): ButtonAction {
     resourceName: btn.spec.location?.componentType === "Resource" ? btn.spec.location.componentID : "",
     disabled: btn.spec.disabled ?? false,
     inputs: btn.spec.inputs ?? [],
+    raw: btn,
   }
 }
 

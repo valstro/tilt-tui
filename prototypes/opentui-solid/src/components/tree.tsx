@@ -152,7 +152,7 @@ export function Tree() {
           }
           break;
         }
-        case Commands.TREE_TRIGGER: {
+        case Commands.RELOAD_RESOURCE: {
           const currentNode = nodes()[cursor()];
           if (currentNode?.type === "resource" && currentNode.resource) {
             triggerResource(currentNode.resource.name);
