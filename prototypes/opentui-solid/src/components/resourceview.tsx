@@ -24,7 +24,7 @@ import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
 
 export function ResourceView() {
-  const { state, triggerResource } = useTilt();
+  const { state, triggerResource, toggleResourceDisable } = useTilt();
   const { state: focusState } = useFocus();
   const theme = defaultTheme;
 
@@ -131,6 +131,12 @@ export function ResourceView() {
             return newVal;
           });
           break;
+        case Commands.RESOURCE_DISABLE_TOGGLE: {
+          if (state.selectedResource) {
+            toggleResourceDisable(state.selectedResource);
+          }
+          break;
+        }
         case Commands.RELOAD_RESOURCE: {
           if (state.selectedResource) {
             triggerResource(state.selectedResource);

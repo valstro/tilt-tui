@@ -138,11 +138,6 @@ export class TiltClient {
         try {
           const viewResp: ViewResponse = JSON.parse(event.data);
 
-          if (!viewResp.isComplete) {
-            // Wait for complete message
-            return;
-          }
-
           if (viewResp.uiResources) {
             const resources = viewResp.uiResources.map(convertResource);
             resourcesSignal.send({

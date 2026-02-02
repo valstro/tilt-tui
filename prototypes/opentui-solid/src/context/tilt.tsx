@@ -8,7 +8,7 @@ import {
   onCleanup,
   type ParentProps,
 } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce, reconcile } from "solid-js/store";
 import {
   run,
   each,
@@ -69,14 +69,29 @@ export function TiltProvider(
    * Update resources in the store.
    * This is called for each WebSocket message, processed serially.
    */
-  function updateResources(resources: Resource[]) {
+  function updateResources(updatedResources: Resource[]) {
     setState(
       produce((s) => {
         s.connectionStatus = "connected";
-        s.resources = resources;
+        s.resources = updatedResources.reduce(
+          (existingResources, updatedResource) => {
+            const existingResourceIndex = existingResources.findIndex(
+              (existingResource) =>
+                existingResource.name === updatedResource.name,
+            );
+
+            if (existingResourceIndex > -1) {
+              existingResources[existingResourceIndex] = updatedResource;
+              return existingResources;
+            }
+
+            return [...existingResources, updatedResource];
+          },
+          [...s.resources],
+        );
 
         // Extract cluster context and namespace from resources
-        for (const r of resources) {
+        for (const r of s.resources) {
           if (r.raw?.metadata?.annotations?.["tilt.dev/cluster"]) {
             s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"];
           }
@@ -86,8 +101,8 @@ export function TiltProvider(
         }
 
         // Auto-select first resource if none selected
-        if (!s.selectedResource && resources.length > 0) {
-          s.selectedResource = resources[0].name;
+        if (!s.selectedResource && s.resources.length > 0) {
+          s.selectedResource = s.resources[0].name;
         }
       }),
     );
