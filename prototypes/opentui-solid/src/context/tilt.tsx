@@ -21,26 +21,27 @@ import {
 import { TiltClient } from "../tilt/client";
 import {
   type Resource,
-  type LogEntry,
   type UIButton,
   ButtonAction,
   buttonActionFromUIButton,
   isDisableToggleButton,
 } from "../tilt/types";
+import { LogStore } from "../tilt/logstore";
 import type { ConnectionStatus } from "../theme/theme";
+import { mergeDeep } from "remeda";
 
 interface TiltState {
   connectionStatus: ConnectionStatus;
   clusterContext: string;
   namespace: string;
   resources: Resource[];
-  logs: Record<string, LogEntry[]>;
   selectedResource: string | null;
 }
 
 interface TiltContextValue {
   state: TiltState;
   client: TiltClient;
+  logStore: LogStore;
   selectResource: (name: string) => void;
   triggerResource: (name: string) => Promise<void>;
   toggleResourceDisable: (name: string) => Promise<void>;
@@ -53,12 +54,13 @@ export function TiltProvider(
 ) {
   const client = new TiltClient({ host: props.host, port: props.port });
 
+  const logStore = new LogStore();
+
   const [state, setState] = createStore<TiltState>({
     connectionStatus: "connecting",
     clusterContext: "docker-desktop",
     namespace: "",
     resources: [],
-    logs: {},
     selectedResource: null,
   });
 
@@ -81,7 +83,11 @@ export function TiltProvider(
             );
 
             if (existingResourceIndex > -1) {
-              existingResources[existingResourceIndex] = updatedResource;
+              const existingResource = existingResources[existingResourceIndex];
+              existingResources[existingResourceIndex] = mergeDeep(
+                existingResource,
+                updatedResource,
+              );
               return existingResources;
             }
 
@@ -114,7 +120,6 @@ export function TiltProvider(
         const { resources } = s;
 
         const buttonMap = new Map<string, ButtonAction[]>();
-        const disableToggleMap = new Map<string, UIButton>();
 
         for (const btn of buttons) {
           const resourceName =
@@ -122,45 +127,33 @@ export function TiltProvider(
               ? btn.spec.location.componentID
               : "";
           if (resourceName) {
-            // Check if this is a disable toggle button
-            if (isDisableToggleButton(btn)) {
-              disableToggleMap.set(resourceName, btn);
-            } else {
-              // Regular button - add to buttons list
-              const existing = buttonMap.get(resourceName) ?? [];
-              existing.push(buttonActionFromUIButton(btn));
-              buttonMap.set(resourceName, existing);
-            }
+            // Regular button - add to buttons list
+            const existing = buttonMap.get(resourceName) ?? [];
+            existing.push(buttonActionFromUIButton(btn));
+            buttonMap.set(resourceName, existing);
           }
         }
 
         for (const resource of resources) {
           const btns = buttonMap.get(resource.name);
           if (btns) {
-            resource.buttons = btns;
-          }
+            resource.buttons = btns.reduce(
+              (existingButtons, updatedButton) => {
+                const existingButtonIndex = existingButtons.findIndex(
+                  (existingButton) =>
+                    existingButton.name === updatedButton.name,
+                );
 
-          // Assign disable toggle button if it exists
-          const disableToggle = disableToggleMap.get(resource.name);
-          if (disableToggle) {
-            resource.disableToggleButton = disableToggle;
-          }
-        }
-      }),
-    );
-  }
+                if (existingButtonIndex > -1) {
+                  existingButtons[existingButtonIndex] = updatedButton;
+                  return existingButtons;
+                }
 
-  /**
-   * Update logs in the store from WebSocket stream.
-   * Merges new log entries with existing ones by resource name.
-   */
-  function updateLogs(entries: Map<string, LogEntry[]>) {
-    setState(
-      produce((s) => {
-        for (const [resourceName, logEntries] of entries) {
-          // Replace logs for each resource that has new entries
-          // The WebSocket sends the full log list, so we replace rather than append
-          s.logs[resourceName] = logEntries;
+                return [...existingButtons, updatedButton];
+              },
+              [...resource.buttons],
+            );
+          }
         }
       }),
     );
@@ -202,7 +195,7 @@ export function TiltProvider(
 
         const logsTask = yield* spawn(function* () {
           for (const update of yield* each(logs)) {
-            updateLogs(update.entries);
+            logStore.append(update.logList);
             yield* each.next();
           }
         });
@@ -243,7 +236,7 @@ export function TiltProvider(
     }
 
     const resource = state.resources[resourceIndex];
-    const button = resource.disableToggleButton;
+    const button = resource.buttons.find(isDisableToggleButton);
     if (!button) {
       console.error(`No disable toggle button found for resource: ${name}`);
       return;
@@ -254,7 +247,7 @@ export function TiltProvider(
       // - "on" when resource is enabled (click to disable)
       // - "off" when resource is disabled (click to enable)
       // So we don't need to override it - just click the button with its existing values
-      const updatedButton = await client.clickButton(button, {});
+      const updatedButton = await client.clickButton(button.raw, {});
 
       // Update the button in the store with the new resourceVersion
       // This prevents 409 Conflict errors on subsequent clicks before WebSocket updates
@@ -286,6 +279,7 @@ export function TiltProvider(
   const value: TiltContextValue = {
     state,
     client,
+    logStore,
     selectResource,
     triggerResource,
     toggleResourceDisable,

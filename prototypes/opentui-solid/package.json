@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "bun run --conditions=browser --preload @opentui/solid/preload ./src/index.tsx",
     "build": "bun build ./src/index.tsx --outdir=./dist --target=bun",
+    "build:binary": "bun run script/build.ts",
+    "build:binary:single": "bun run script/build.ts --single",
     "typecheck": "tsc --noEmit",
     "knip": "knip"
   },
@@ -14,6 +16,7 @@
     "@opentui/core": "0.1.75",
     "@opentui/solid": "0.1.75",
     "effection": "^4.0.2",
+    "remeda": "^2.33.4",
     "solid-js": "1.9.9"
   },
   "devDependencies": {

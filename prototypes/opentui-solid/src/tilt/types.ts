@@ -328,9 +328,16 @@ export function buttonActionFromUIButton(btn: UIButton): ButtonAction {
   };
 }
 
-export function isDisableToggleButton(btn: UIButton): boolean {
+export function isDisableToggleButton(btn: UIButton | ButtonAction): boolean {
+  let metadata;
+  if ("raw" in btn) {
+    metadata = btn.raw.metadata;
+  } else {
+    metadata = btn.metadata;
+  }
+
   return (
-    btn.metadata.annotations?.[UIBUTTON_ANNOTATION_TYPE] ===
+    metadata.annotations?.[UIBUTTON_ANNOTATION_TYPE] ===
     UIBUTTON_TOGGLE_DISABLE_TYPE
   );
 }

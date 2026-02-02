@@ -22,33 +22,34 @@ import {
 } from "../theme/theme";
 import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
+import type { StoredLine } from "../tilt/logstore";
 
 export function ResourceView() {
-  const { state, triggerResource, toggleResourceDisable } = useTilt();
+  const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
   const { state: focusState } = useFocus();
   const theme = defaultTheme;
 
   const [autoScroll, setAutoScroll] = createSignal(true);
   const [xOffset, setXOffset] = createSignal(0);
+  
+  // Checkpoint tracking for incremental log fetching
+  const [checkpoint, setCheckpoint] = createSignal(0);
+  const [renderedLines, setRenderedLines] = createSignal<StoredLine[]>([]);
 
   // Reference to scrollbox for programmatic control
   let scrollRef: ScrollBoxRenderable | undefined;
 
   const isFocused = createMemo(() => focusState.activePane === "resource");
 
-  const logs = createMemo(() => {
-    const resourceName = state.selectedResource;
-    if (!resourceName) return [];
-    return state.logs[resourceName] ?? [];
-  });
-
-  // Reset scroll position when resource changes
+  // Reset scroll position and checkpoint when resource changes
   createEffect(
     on(
       () => state.selectedResource,
       () => {
         setAutoScroll(true);
         setXOffset(0);
+        setCheckpoint(0);
+        setRenderedLines([]);
         // Reset scroll to top first - scrollbox will handle positioning
         if (scrollRef) {
           scrollRef.scrollTo(0);
@@ -57,10 +58,25 @@ export function ResourceView() {
     ),
   );
 
+  // Fetch new log lines when logStore updates
+  createEffect(() => {
+    const resourceName = state.selectedResource;
+    if (!resourceName) return;
+
+    // Track logStore.version for reactivity
+    logStore.version;
+
+    const patch = logStore.manifestLogPatchSet(resourceName, checkpoint());
+    if (patch.lines.length > 0) {
+      setRenderedLines((prev) => [...prev, ...patch.lines]);
+      setCheckpoint(patch.checkpoint);
+    }
+  });
+
   // Scroll to bottom when logs change and autoScroll is enabled
   createEffect(
     on(
-      () => logs().length,
+      () => renderedLines().length,
       () => {
         if (autoScroll() && scrollRef) {
           scrollRef.scrollTo(scrollRef.scrollHeight);
@@ -180,7 +196,7 @@ export function ResourceView() {
             stickyStart="bottom"
           >
             <Show
-              when={logs().length > 0}
+              when={renderedLines().length > 0}
               fallback={
                 <box paddingLeft={1} flexDirection="row">
                   <text fg={theme.textMuted}>
@@ -189,7 +205,7 @@ export function ResourceView() {
                 </box>
               }
             >
-              <For each={logs()}>
+              <For each={renderedLines()}>
                 {(entry) => (
                   <LogLine entry={entry} theme={theme} xOffset={xOffset()} />
                 )}
@@ -214,12 +230,12 @@ function stripAnsi(text: string): string {
 }
 
 function LogLine(props: {
-  entry: { timestamp: Date; level: string; text: string };
+  entry: StoredLine;
   theme: Theme;
   xOffset: number;
 }) {
   const timestamp = createMemo(() => {
-    const t = props.entry.timestamp;
+    const t = new Date(props.entry.time);
     return t.toLocaleTimeString("en-US", {
       hour12: false,
       hour: "2-digit",
