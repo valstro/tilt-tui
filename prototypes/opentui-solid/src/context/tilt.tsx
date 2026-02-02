@@ -28,7 +28,6 @@ import {
 } from "../tilt/types";
 import { LogStore } from "../tilt/logstore";
 import type { ConnectionStatus } from "../theme/theme";
-import { mergeDeep } from "remeda";
 
 interface TiltState {
   connectionStatus: ConnectionStatus;
@@ -84,10 +83,17 @@ export function TiltProvider(
 
             if (existingResourceIndex > -1) {
               const existingResource = existingResources[existingResourceIndex];
-              existingResources[existingResourceIndex] = mergeDeep(
-                existingResource,
-                updatedResource,
+              const buttons = mergeButtons(
+                existingResource.buttons,
+                updatedResource.buttons,
               );
+
+              existingResources[existingResourceIndex] = {
+                ...existingResource,
+                ...updatedResource,
+                // buttons can get blanked out by resource updates, so make sure we merge updated buttons in
+                buttons,
+              };
               return existingResources;
             }
 
@@ -114,6 +120,24 @@ export function TiltProvider(
     );
   }
 
+  function mergeButtons(target: ButtonAction[], source: ButtonAction[]) {
+    return source.reduce(
+      (existingButtons, updatedButton) => {
+        const existingButtonIndex = existingButtons.findIndex(
+          (existingButton) => existingButton.name === updatedButton.name,
+        );
+
+        if (existingButtonIndex > -1) {
+          existingButtons[existingButtonIndex] = updatedButton;
+          return existingButtons;
+        }
+
+        return [...existingButtons, updatedButton];
+      },
+      [...target],
+    );
+  }
+
   function updateButtons(buttons: UIButton[]) {
     setState(
       produce((s) => {
@@ -137,22 +161,8 @@ export function TiltProvider(
         for (const resource of resources) {
           const btns = buttonMap.get(resource.name);
           if (btns) {
-            resource.buttons = btns.reduce(
-              (existingButtons, updatedButton) => {
-                const existingButtonIndex = existingButtons.findIndex(
-                  (existingButton) =>
-                    existingButton.name === updatedButton.name,
-                );
-
-                if (existingButtonIndex > -1) {
-                  existingButtons[existingButtonIndex] = updatedButton;
-                  return existingButtons;
-                }
-
-                return [...existingButtons, updatedButton];
-              },
-              [...resource.buttons],
-            );
+            // buttons can get blanked out by resource updates, so make sure we merge updated buttons in
+            resource.buttons = mergeButtons(resource.buttons, btns);
           }
         }
       }),

@@ -17,6 +17,13 @@ import { Commands } from "./commands";
 
 function AppContent() {
   const renderer = useRenderer();
+  renderer.keyInput.on("keypress", (key) => {
+    // Toggle with backtick key
+    if (key.name === "`") {
+      renderer.console.toggle();
+    }
+  });
+
   const {
     cyclePane,
     cyclePaneReverse,

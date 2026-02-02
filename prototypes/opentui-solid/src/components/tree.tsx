@@ -110,7 +110,8 @@ function buildTreeNodes(
 }
 
 export function Tree() {
-  const { state, selectResource, triggerResource, toggleResourceDisable } = useTilt();
+  const { state, selectResource, triggerResource, toggleResourceDisable } =
+    useTilt();
   const { state: focusState, setActivePane } = useFocus();
   const theme = defaultTheme;
 
@@ -125,6 +126,24 @@ export function Tree() {
 
   const isFocused = createMemo(() => focusState.activePane === "tree");
 
+  const toggleGroup = () => {
+    const node = nodes()[cursor()];
+    if (node?.type === "group" && node.groupName) {
+      setExpandedGroups(node.groupName, !node.expanded);
+    }
+  };
+
+  const selectResourceAtCursor = (switchToResourcePane: boolean) => {
+    const node = nodes()[cursor()];
+    if (node?.type === "resource" && node.resource) {
+      selectResource(node.resource.name);
+
+      if (switchToResourcePane) {
+        setActivePane("resource");
+      }
+    }
+  };
+
   // Keyboard handling - only active when focused
   useKeyHandler(
     "tree",
@@ -132,24 +151,23 @@ export function Tree() {
       switch (command) {
         case Commands.NAV_DOWN:
           setCursor((c) => Math.min(c + 1, nodes().length - 1));
+          selectResourceAtCursor(false);
           break;
         case Commands.NAV_UP:
           setCursor((c) => Math.max(c - 1, 0));
+          selectResourceAtCursor(false);
           break;
         case Commands.NAV_TOP:
           setCursor(0);
+          selectResourceAtCursor(false);
           break;
         case Commands.NAV_BOTTOM:
           setCursor(nodes().length - 1);
+          selectResourceAtCursor(false);
           break;
         case Commands.TREE_SELECT: {
-          const node = nodes()[cursor()];
-          if (node?.type === "group" && node.groupName) {
-            setExpandedGroups(node.groupName, !node.expanded);
-          } else if (node?.type === "resource" && node.resource) {
-            selectResource(node.resource.name);
-            setActivePane("resource"); // Focus logs view after selecting resource
-          }
+          toggleGroup();
+          selectResourceAtCursor(true);
           break;
         }
         case Commands.RELOAD_RESOURCE: {
@@ -157,6 +175,7 @@ export function Tree() {
           if (currentNode?.type === "resource" && currentNode.resource) {
             triggerResource(currentNode.resource.name);
           }
+          selectResourceAtCursor(false);
           break;
         }
         case Commands.RESOURCE_DISABLE_TOGGLE: {
@@ -321,10 +340,7 @@ function ResourceNode(props: {
         borderColor={runtimeColor()}
         paddingLeft={1}
       >
-        <text
-          fg={nameColor()}
-          attributes={props.isSelected ? 1 : 0}
-        >
+        <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
           {r().name}
         </text>
         <Show when={r().hasPending}>
@@ -341,9 +357,7 @@ function ResourceNode(props: {
         borderColor={buildColor()}
         paddingLeft={1}
       >
-        <text fg={subheadingColor()}>
-          {subheading()}
-        </text>
+        <text fg={subheadingColor()}>{subheading()}</text>
       </box>
     </box>
   );
