@@ -56,6 +56,13 @@ export const keymap: KeyMapping[] = [
     command: Commands.FOCUS_PREV,
     description: "switch",
   },
+  {
+    modes: ["app"],
+    key: "?",
+    command: Commands.HELP_OPEN,
+    description: "help",
+    showInHelp: true,
+  },
 
   // Shared navigation (tree + resource)
   {

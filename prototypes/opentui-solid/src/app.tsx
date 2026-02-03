@@ -12,6 +12,7 @@ import {
   type PaletteOption,
 } from "./components/command-palette";
 import { ResourcePicker } from "./components/resource-picker";
+import { KeyboardHelp } from "./components/keyboard-help";
 import { defaultTheme } from "./theme/theme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
@@ -34,6 +35,8 @@ function AppContent() {
     setPaletteOpen,
     resourcePickerOpen,
     setResourcePickerOpen,
+    helpOpen,
+    setHelpOpen,
   } = useFocus();
   const theme = defaultTheme;
 
@@ -58,14 +61,17 @@ function AppContent() {
       case Commands.RESOURCE_PICKER_OPEN:
         setResourcePickerOpen(true);
         break;
+      case Commands.HELP_OPEN:
+        setHelpOpen(true);
+        break;
     }
   }
 
-  // App-level keyboard handling (disabled when palette or picker is open)
+  // App-level keyboard handling (disabled when any modal is open)
   useKeyHandler(
     "app",
     executeCommand,
-    () => !paletteOpen() && !resourcePickerOpen(),
+    () => !paletteOpen() && !resourcePickerOpen() && !helpOpen(),
   );
 
   // Handle palette selection
@@ -108,6 +114,11 @@ function AppContent() {
       {/* Resource Picker overlay */}
       <Show when={resourcePickerOpen()}>
         <ResourcePicker onClose={() => setResourcePickerOpen(false)} />
+      </Show>
+
+      {/* Keyboard Help overlay */}
+      <Show when={helpOpen()}>
+        <KeyboardHelp onClose={() => setHelpOpen(false)} />
       </Show>
     </box>
   );

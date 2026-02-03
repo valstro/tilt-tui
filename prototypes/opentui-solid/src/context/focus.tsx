@@ -26,6 +26,8 @@ interface FocusContextValue {
   setPaletteOpen: Setter<boolean>;
   resourcePickerOpen: () => boolean;
   setResourcePickerOpen: Setter<boolean>;
+  helpOpen: () => boolean;
+  setHelpOpen: Setter<boolean>;
 }
 
 const FocusContext = createContext<FocusContextValue>();
@@ -37,6 +39,7 @@ export function FocusProvider(props: ParentProps) {
 
   const [paletteOpen, setPaletteOpen] = createSignal(false);
   const [resourcePickerOpen, setResourcePickerOpen] = createSignal(false);
+  const [helpOpen, setHelpOpen] = createSignal(false);
 
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
@@ -95,6 +98,8 @@ export function FocusProvider(props: ParentProps) {
     setPaletteOpen,
     resourcePickerOpen,
     setResourcePickerOpen,
+    helpOpen,
+    setHelpOpen,
   };
 
   return (

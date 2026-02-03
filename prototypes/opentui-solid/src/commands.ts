@@ -31,4 +31,7 @@ export const Commands = {
 
   // Resource picker
   RESOURCE_PICKER_OPEN: "resource.picker.open",
+
+  // Help
+  HELP_OPEN: "help.open",
 } as const;

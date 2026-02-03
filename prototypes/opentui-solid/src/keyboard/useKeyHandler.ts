@@ -17,14 +17,16 @@ export function useKeyHandler(
   onCommand: (command: Command) => void,
   enabled: () => boolean = () => true,
 ) {
-  const { paletteOpen, resourcePickerOpen } = useFocus();
+  const { paletteOpen, resourcePickerOpen, helpOpen } = useFocus();
 
   useKeyboard((event) => {
     // Skip if not enabled (e.g., not focused)
     if (!enabled()) return;
 
-    // Check if any modal is open (palette or resource picker)
-    const modalOpen = paletteOpen() || resourcePickerOpen();
+    console.log("key event", event);
+
+    // Check if any modal is open (palette, resource picker, or help)
+    const modalOpen = paletteOpen() || resourcePickerOpen() || helpOpen();
     const command = handleKeyEvent(event, mode, modalOpen);
     if (command) {
       onCommand(command);
