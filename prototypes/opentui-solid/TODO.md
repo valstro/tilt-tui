@@ -41,7 +41,11 @@ A modal picker-style dialog for resources that acts like a palette with inline s
 - selection of a resource from picker selects that item on the tree, focus on resource pane.
   - expands group if collapsed
 
+- ignore status filter for picker options. if the picked resource isn't visible due to filtering, reset the status filter to (all)
+
 ### Status Filter Toggle Design
+
+A one-button status filter toggle/cycle for the tree view.
 
 - keyboard shortcut `f`
 - filters treeview resources by active status (failed, in-progress, successful, all)

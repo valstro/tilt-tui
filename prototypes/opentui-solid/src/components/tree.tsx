@@ -1,6 +1,6 @@
 // Tree component - resource list with grouping (sidebar)
 
-import { createSignal, createMemo, For, Show } from "solid-js";
+import { createSignal, createMemo, createEffect, on, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
@@ -10,13 +10,14 @@ import {
   type Theme,
   runtimeStatusColor,
   buildStatusColor,
+  statusColor,
   formatRelativeTime,
   formatBuildDuration,
   focusBorder,
 } from "../theme/theme";
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
-import type { Resource } from "../tilt/types";
+import { type Resource, getEffectiveStatus } from "../tilt/types";
 import { Commands } from "@/commands";
 
 interface TreeNode {
@@ -109,9 +110,18 @@ function buildTreeNodes(
   return nodes;
 }
 
+// Export getGroupKey for use by resource picker
+export { getGroupKey };
+
 export function Tree() {
-  const { state, selectResource, triggerResource, toggleResourceDisable } =
-    useTilt();
+  const {
+    state,
+    selectResource,
+    triggerResource,
+    toggleResourceDisable,
+    cycleStatusFilter,
+    resetStatusFilter,
+  } = useTilt();
   const { state: focusState, setActivePane } = useFocus();
   const theme = defaultTheme;
 
@@ -120,8 +130,40 @@ export function Tree() {
     Record<string, boolean>
   >({});
 
+  // Filter resources by status
+  const filteredResources = createMemo(() => {
+    const filter = state.statusFilter;
+    if (filter === "all") return state.resources;
+    return state.resources.filter((r) => getEffectiveStatus(r) === filter);
+  });
+
+  // Reset cursor when filter changes
+  createEffect(
+    on(
+      () => state.statusFilter,
+      () => {
+        setCursor(0);
+      },
+    ),
+  );
+
+  // Auto-expand group when resource is selected externally (e.g., from picker)
+  createEffect(
+    on(
+      () => state.selectedResource,
+      (name) => {
+        if (!name) return;
+        const resource = state.resources.find((r) => r.name === name);
+        if (resource) {
+          const groupKey = getGroupKey(resource);
+          setExpandedGroups(groupKey, true);
+        }
+      },
+    ),
+  );
+
   const nodes = createMemo(() =>
-    buildTreeNodes(state.resources, expandedGroups),
+    buildTreeNodes(filteredResources(), expandedGroups),
   );
 
   const isFocused = createMemo(() => focusState.activePane === "tree");
@@ -185,6 +227,14 @@ export function Tree() {
           }
           break;
         }
+        case Commands.STATUS_FILTER_CYCLE:
+          cycleStatusFilter();
+          break;
+        case Commands.STATUS_FILTER_RESET:
+          if (state.statusFilter !== "all") {
+            resetStatusFilter();
+          }
+          break;
       }
     },
     isFocused,
@@ -203,7 +253,14 @@ export function Tree() {
       paddingLeft={isFocused() ? 0 : 1}
       {...focusBorder(theme, isFocused())}
     >
-      <PaneHeader title={`Resources (${state.resources.length})`} />
+      <PaneHeader title={`Resources (${filteredResources().length})`}>
+        <Show when={state.statusFilter !== "all"}>
+          <text fg={statusColor(theme, state.statusFilter)}>
+            {" "}
+            [{state.statusFilter}]
+          </text>
+        </Show>
+      </PaneHeader>
 
       {/* Tree content */}
       <scrollbox paddingLeft={1} flexGrow={1} stickyScroll={false}>

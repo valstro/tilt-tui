@@ -14,6 +14,13 @@ export const keymap: KeyMapping[] = [
   },
   {
     modes: ["app"],
+    key: "space",
+    modifiers: { ctrl: true },
+    command: Commands.RESOURCE_PICKER_OPEN,
+    description: "resource picker",
+  },
+  {
+    modes: ["app"],
     key: "q",
     command: Commands.APP_QUIT,
     description: "quit",
@@ -104,6 +111,18 @@ export const keymap: KeyMapping[] = [
     command: Commands.TREE_SELECT,
     description: "select",
     showInHelp: false,
+  },
+  {
+    modes: ["tree"],
+    key: "f",
+    command: Commands.STATUS_FILTER_CYCLE,
+    description: "filter status",
+  },
+  {
+    modes: ["tree"],
+    key: "escape",
+    command: Commands.STATUS_FILTER_RESET,
+    description: "reset filter",
   },
   {
     modes: ["tree", "resource"],

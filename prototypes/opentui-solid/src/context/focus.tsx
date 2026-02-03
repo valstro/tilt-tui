@@ -24,6 +24,8 @@ interface FocusContextValue {
   toggleSidebar: () => void;
   paletteOpen: () => boolean;
   setPaletteOpen: Setter<boolean>;
+  resourcePickerOpen: () => boolean;
+  setResourcePickerOpen: Setter<boolean>;
 }
 
 const FocusContext = createContext<FocusContextValue>();
@@ -34,6 +36,7 @@ export function FocusProvider(props: ParentProps) {
   });
 
   const [paletteOpen, setPaletteOpen] = createSignal(false);
+  const [resourcePickerOpen, setResourcePickerOpen] = createSignal(false);
 
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
@@ -90,6 +93,8 @@ export function FocusProvider(props: ParentProps) {
     toggleSidebar,
     paletteOpen,
     setPaletteOpen,
+    resourcePickerOpen,
+    setResourcePickerOpen,
   };
 
   return (

@@ -29,12 +29,17 @@ import {
 import { LogStore } from "../tilt/logstore";
 import type { ConnectionStatus } from "../theme/theme";
 
+// Status filter for tree view
+export type StatusFilter = "all" | "error" | "pending" | "ok";
+const FILTER_ORDER: StatusFilter[] = ["all", "error", "pending", "ok"];
+
 interface TiltState {
   connectionStatus: ConnectionStatus;
   clusterContext: string;
   namespace: string;
   resources: Resource[];
   selectedResource: string | null;
+  statusFilter: StatusFilter;
 }
 
 interface TiltContextValue {
@@ -44,6 +49,8 @@ interface TiltContextValue {
   selectResource: (name: string) => void;
   triggerResource: (name: string) => Promise<void>;
   toggleResourceDisable: (name: string) => Promise<void>;
+  cycleStatusFilter: () => void;
+  resetStatusFilter: () => void;
 }
 
 const TiltContext = createContext<TiltContextValue>();
@@ -61,6 +68,7 @@ export function TiltProvider(
     namespace: "",
     resources: [],
     selectedResource: null,
+    statusFilter: "all",
   });
 
   // Task handle for the main Effection operation
@@ -230,6 +238,17 @@ export function TiltProvider(
     setState("selectedResource", name);
   }
 
+  function cycleStatusFilter() {
+    setState("statusFilter", (current) => {
+      const idx = FILTER_ORDER.indexOf(current);
+      return FILTER_ORDER[(idx + 1) % FILTER_ORDER.length];
+    });
+  }
+
+  function resetStatusFilter() {
+    setState("statusFilter", "all");
+  }
+
   async function triggerResource(name: string) {
     try {
       await client.triggerResource(name);
@@ -293,6 +312,8 @@ export function TiltProvider(
     selectResource,
     triggerResource,
     toggleResourceDisable,
+    cycleStatusFilter,
+    resetStatusFilter,
   };
 
   return (

@@ -11,6 +11,7 @@ import {
   CommandPalette,
   type PaletteOption,
 } from "./components/command-palette";
+import { ResourcePicker } from "./components/resource-picker";
 import { defaultTheme } from "./theme/theme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
@@ -31,6 +32,8 @@ function AppContent() {
     toggleSidebar,
     paletteOpen,
     setPaletteOpen,
+    resourcePickerOpen,
+    setResourcePickerOpen,
   } = useFocus();
   const theme = defaultTheme;
 
@@ -52,11 +55,18 @@ function AppContent() {
       case Commands.PALETTE_OPEN:
         setPaletteOpen(true);
         break;
+      case Commands.RESOURCE_PICKER_OPEN:
+        setResourcePickerOpen(true);
+        break;
     }
   }
 
-  // App-level keyboard handling (disabled when palette is open)
-  useKeyHandler("app", executeCommand, () => !paletteOpen());
+  // App-level keyboard handling (disabled when palette or picker is open)
+  useKeyHandler(
+    "app",
+    executeCommand,
+    () => !paletteOpen() && !resourcePickerOpen(),
+  );
 
   // Handle palette selection
   function handlePaletteSelect(option: PaletteOption) {
@@ -93,6 +103,11 @@ function AppContent() {
           onClose={() => setPaletteOpen(false)}
           onSelect={handlePaletteSelect}
         />
+      </Show>
+
+      {/* Resource Picker overlay */}
+      <Show when={resourcePickerOpen()}>
+        <ResourcePicker onClose={() => setResourcePickerOpen(false)} />
       </Show>
     </box>
   );

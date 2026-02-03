@@ -16,6 +16,8 @@ export const Commands = {
 
   // Tree-specific
   TREE_SELECT: "tree.select",
+  STATUS_FILTER_CYCLE: "status.filter.cycle",
+  STATUS_FILTER_RESET: "status.filter.reset",
 
   // Resource/scroll-specific
   SCROLL_LEFT: "scroll.left",
@@ -26,4 +28,7 @@ export const Commands = {
 
   // Command palette
   PALETTE_OPEN: "palette.open",
+
+  // Resource picker
+  RESOURCE_PICKER_OPEN: "resource.picker.open",
 } as const;
