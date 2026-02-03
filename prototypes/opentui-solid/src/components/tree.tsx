@@ -1,6 +1,7 @@
 // Tree component - resource list with grouping (sidebar)
 
-import { createSignal, createMemo, createEffect, on, For, Show } from "solid-js";
+import { createSignal, createMemo, createEffect, on, For, Show, untrack } from "solid-js";
+import type { ScrollBoxRenderable } from "@opentui/core";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
@@ -130,6 +131,8 @@ export function Tree() {
     Record<string, boolean>
   >({});
 
+  let scrollRef: ScrollBoxRenderable | undefined;
+
   // Filter resources by status
   const filteredResources = createMemo(() => {
     const filter = state.statusFilter;
@@ -181,6 +184,38 @@ export function Tree() {
   );
 
   const isFocused = createMemo(() => focusState.activePane === "tree");
+
+  // Calculate the row position for a given cursor index
+  // Groups take 1 row, resources take 2 rows
+  function getRowPosition(cursorIndex: number): { top: number; height: number } {
+    const nodeList = nodes();
+    let row = 0;
+    for (let i = 0; i < cursorIndex && i < nodeList.length; i++) {
+      row += nodeList[i].type === "group" ? 1 : 2;
+    }
+    const height = nodeList[cursorIndex]?.type === "group" ? 1 : 2;
+    return { top: row, height };
+  }
+
+  // Scroll to keep cursor visible when it changes
+  createEffect(
+    on(cursor, (cursorIndex) => {
+      if (!scrollRef) return;
+
+      const { top: itemTop, height: itemHeight } = getRowPosition(cursorIndex);
+      const scrollTop = scrollRef.scrollTop;
+      const visibleRows = scrollRef.height ?? 10;
+
+      // Scroll up if item is above viewport
+      if (itemTop < scrollTop) {
+        scrollRef.scrollTo(itemTop);
+      }
+      // Scroll down if item is below viewport
+      else if (itemTop + itemHeight > scrollTop + visibleRows) {
+        scrollRef.scrollTo(itemTop + itemHeight - visibleRows);
+      }
+    }),
+  );
 
   const toggleGroup = () => {
     const node = nodes()[cursor()];
@@ -277,7 +312,12 @@ export function Tree() {
       </PaneHeader>
 
       {/* Tree content */}
-      <scrollbox paddingLeft={1} flexGrow={1} stickyScroll={false}>
+      <scrollbox
+        ref={(r: ScrollBoxRenderable) => (scrollRef = r)}
+        paddingLeft={1}
+        flexGrow={1}
+        stickyScroll={false}
+      >
         <For each={nodes()}>
           {(node, index) => {
             const isSelected = createMemo(
