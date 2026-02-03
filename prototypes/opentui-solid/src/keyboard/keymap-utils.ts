@@ -21,7 +21,7 @@ export interface KeyMapping {
 
 // Helper: get mappings visible in help for a mode
 export function getHelpMappingsForMode(mode: Mode): KeyMapping[] {
-  return keymap.filter((m) => m.modes.includes(mode) && m.showInHelp !== false);
+  return keymap.filter((m) => m.modes.includes(mode) && m.showInHelp);
 }
 
 // Helper: format key for display (^e for ctrl+e, Q for shift+q)

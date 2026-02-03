@@ -11,6 +11,7 @@ export const keymap: KeyMapping[] = [
     modifiers: { ctrl: true },
     command: Commands.PALETTE_OPEN,
     description: "palette",
+    showInHelp: true,
   },
   {
     modes: ["app"],
@@ -18,6 +19,7 @@ export const keymap: KeyMapping[] = [
     modifiers: { ctrl: true },
     command: Commands.RESOURCE_PICKER_OPEN,
     description: "resource picker",
+    showInHelp: true,
   },
   {
     modes: ["app"],
@@ -31,7 +33,6 @@ export const keymap: KeyMapping[] = [
     modifiers: { ctrl: true },
     command: Commands.APP_QUIT,
     description: "quit",
-    showInHelp: false,
   },
   {
     modes: ["app"],
@@ -39,12 +40,14 @@ export const keymap: KeyMapping[] = [
     modifiers: { ctrl: true },
     command: Commands.SIDEBAR_TOGGLE,
     description: "sidebar",
+    showInHelp: true,
   },
   {
     modes: ["app"],
     key: "tab",
     command: Commands.FOCUS_NEXT,
     description: "switch",
+    showInHelp: true,
   },
   {
     modes: ["app"],
@@ -52,7 +55,6 @@ export const keymap: KeyMapping[] = [
     modifiers: { shift: true },
     command: Commands.FOCUS_PREV,
     description: "switch",
-    showInHelp: false,
   },
 
   // Shared navigation (tree + resource)
@@ -67,21 +69,18 @@ export const keymap: KeyMapping[] = [
     key: "down",
     command: Commands.NAV_DOWN,
     description: "down",
-    showInHelp: false,
   },
   {
     modes: ["tree", "resource"],
     key: "k",
     command: Commands.NAV_UP,
     description: "up",
-    showInHelp: false,
   }, // Combined with j
   {
     modes: ["tree", "resource"],
     key: "up",
     command: Commands.NAV_UP,
     description: "up",
-    showInHelp: false,
   },
   {
     modes: ["tree", "resource"],
@@ -95,7 +94,6 @@ export const keymap: KeyMapping[] = [
     modifiers: { shift: true },
     command: Commands.NAV_BOTTOM,
     description: "bottom",
-    showInHelp: false,
   }, // Combined with g
 
   // Tree-specific
@@ -110,13 +108,13 @@ export const keymap: KeyMapping[] = [
     key: "space",
     command: Commands.TREE_SELECT,
     description: "select",
-    showInHelp: false,
   },
   {
     modes: ["tree"],
     key: "f",
     command: Commands.STATUS_FILTER_CYCLE,
     description: "filter status",
+    showInHelp: true,
   },
   {
     modes: ["tree"],
@@ -129,6 +127,7 @@ export const keymap: KeyMapping[] = [
     key: "r",
     command: Commands.RELOAD_RESOURCE,
     description: "reload resource",
+    showInHelp: true,
   },
   {
     modes: ["tree", "resource"],
@@ -149,35 +148,30 @@ export const keymap: KeyMapping[] = [
     key: "left",
     command: Commands.SCROLL_LEFT,
     description: "left",
-    showInHelp: false,
   },
   {
     modes: ["resource"],
     key: "l",
     command: Commands.SCROLL_RIGHT,
     description: "right",
-    showInHelp: false,
   }, // Combined with h
   {
     modes: ["resource"],
     key: "right",
     command: Commands.SCROLL_RIGHT,
     description: "right",
-    showInHelp: false,
   },
   {
     modes: ["resource"],
     key: "pageup",
     command: Commands.SCROLL_PAGEUP,
     description: "pgup",
-    showInHelp: false,
   },
   {
     modes: ["resource"],
     key: "pagedown",
     command: Commands.SCROLL_PAGEDOWN,
     description: "pgdn",
-    showInHelp: false,
   },
   {
     modes: ["resource"],

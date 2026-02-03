@@ -147,7 +147,11 @@ export function Tree() {
     ),
   );
 
-  // Auto-expand group when resource is selected externally (e.g., from picker)
+  const nodes = createMemo(() =>
+    buildTreeNodes(filteredResources(), expandedGroups),
+  );
+
+  // Auto-expand group and set cursor when resource is selected externally (e.g., from picker)
   createEffect(
     on(
       () => state.selectedResource,
@@ -156,14 +160,24 @@ export function Tree() {
         const resource = state.resources.find((r) => r.name === name);
         if (resource) {
           const groupKey = getGroupKey(resource);
+          // Expand the group first
           setExpandedGroups(groupKey, true);
+
+          // Find the cursor position for this resource in the nodes list
+          // Need to rebuild nodes with the expanded group to find correct index
+          const updatedNodes = buildTreeNodes(filteredResources(), {
+            ...expandedGroups,
+            [groupKey]: true,
+          });
+          const nodeIndex = updatedNodes.findIndex(
+            (n) => n.type === "resource" && n.resource?.name === name,
+          );
+          if (nodeIndex !== -1) {
+            setCursor(nodeIndex);
+          }
         }
       },
     ),
-  );
-
-  const nodes = createMemo(() =>
-    buildTreeNodes(filteredResources(), expandedGroups),
   );
 
   const isFocused = createMemo(() => focusState.activePane === "tree");

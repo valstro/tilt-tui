@@ -20,6 +20,7 @@
 - user config
   - mutable keymap
   - user-defined log filters?
+- keyboard shortcut help modal
 
 ## Feature: Tree Navigation
 
@@ -52,3 +53,16 @@ A one-button status filter toggle/cycle for the tree view.
 - cycle through statuses
 - if no resources exist in active status, don't show empty resource groups.
 - indicate active status in the treeview PaneHeader
+
+## Keyboard Shortcut Modal
+
+### Goals
+
+- Show a cheat sheet to help users remember available commands
+
+### Design
+
+- Use modal with same style as picker
+- Show all commands and keyboard shortcuts
+- Group by mode
+- Triggered by `?` key
