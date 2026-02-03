@@ -2,27 +2,27 @@
 
 // Build script for Tilt TUI - compiles to standalone binaries for Linux and Darwin
 // @ts-ignore - solid-plugin is a TypeScript file without full type declarations
-import solidPlugin from "../node_modules/@opentui/solid/scripts/solid-plugin"
-import path from "path"
-import fs from "fs"
-import { $ } from "bun"
-import { fileURLToPath } from "url"
+//
+// lifted from [opencode's build script](https://github.com/anomalyco/opencode/blob/60e616ec8150d100a17df758963eb023b8f50d95/packages/opencode/script/build.ts)
+import solidPlugin from "../node_modules/@opentui/solid/scripts/solid-plugin";
+import path from "path";
+import fs from "fs";
+import { $ } from "bun";
+import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const dir = path.resolve(__dirname, "..")
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dir = path.resolve(__dirname, "..");
 
-process.chdir(dir)
+process.chdir(dir);
 
-const pkg = await Bun.file(path.join(dir, "package.json")).json()
+const pkg = await Bun.file(path.join(dir, "package.json")).json();
 
-const singleFlag = process.argv.includes("--single")
-const skipInstall = process.argv.includes("--skip-install")
+const singleFlag = process.argv.includes("--single");
 
-// Only Linux and Darwin targets
 const allTargets: {
-  os: string
-  arch: "arm64" | "x64"
+  os: string;
+  arch: "arm64" | "x64";
 }[] = [
   {
     os: "linux",
@@ -40,38 +40,30 @@ const allTargets: {
     os: "darwin",
     arch: "x64",
   },
-]
+];
 
 const targets = singleFlag
   ? allTargets.filter(
-      (item) => item.os === process.platform && item.arch === process.arch
+      (item) => item.os === process.platform && item.arch === process.arch,
     )
-  : allTargets
+  : allTargets;
 
-await $`rm -rf dist`
+await $`rm -rf dist`;
 
-const binaries: Record<string, string> = {}
+const binaries: Record<string, string> = {};
 
-if (!skipInstall) {
-  // Install native dependencies for all target platforms
-  await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
-}
+// Install native dependencies for all target platforms
+await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`;
 
 for (const item of targets) {
-  const name = ["tilt-tui", item.os, item.arch].join("-")
-  console.log(`Building ${name}...`)
-  await $`mkdir -p dist/${name}/bin`
+  const name = ["tilt-tui", item.os, item.arch].join("-");
+  console.log(`Building ${name}...`);
+  await $`mkdir -p dist/${name}/bin`;
 
   // Get the parser worker path from @opentui/core
   const parserWorker = fs.realpathSync(
-    path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js")
-  )
-
-  // Use bunfs root path for embedded files
-  const bunfsRoot = "/$bunfs/root/"
-  const workerRelativePath = path
-    .relative(dir, parserWorker)
-    .replaceAll("\\", "/")
+    path.resolve(dir, "./node_modules/@opentui/core/parser.worker.js"),
+  );
 
   const result = await Bun.build({
     conditions: ["browser"],
@@ -92,16 +84,15 @@ for (const item of targets) {
     entrypoints: ["./src/index.tsx", parserWorker],
     define: {
       TILT_TUI_VERSION: `'${pkg.version}'`,
-      OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + workerRelativePath,
     },
-  })
+  });
 
   if (!result.success) {
-    console.error(`Build failed for ${name}:`)
+    console.error(`Build failed for ${name}:`);
     for (const log of result.logs) {
-      console.error(log)
+      console.error(log);
     }
-    process.exit(1)
+    process.exit(1);
   }
 
   // Create package.json for the binary package
@@ -114,28 +105,15 @@ for (const item of targets) {
         cpu: [item.arch],
       },
       null,
-      2
-    )
-  )
+      2,
+    ),
+  );
 
-  binaries[name] = pkg.version
-  console.log(`Built ${name} successfully`)
+  binaries[name] = pkg.version;
+  console.log(`Built ${name} successfully`);
 }
 
-// Create release archives if requested
-if (process.argv.includes("--release")) {
-  console.log("\nCreating release archives...")
-  for (const key of Object.keys(binaries)) {
-    if (key.includes("linux")) {
-      await $`tar -czf ../../${key}.tar.gz *`.cwd(`dist/${key}/bin`)
-    } else {
-      await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
-    }
-    console.log(`Created archive for ${key}`)
-  }
-}
+console.log("\nBuild complete!");
+console.log("Binaries:", binaries);
 
-console.log("\nBuild complete!")
-console.log("Binaries:", binaries)
-
-export { binaries }
+export { binaries };
