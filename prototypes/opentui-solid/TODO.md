@@ -1,5 +1,7 @@
 # BUGS
 
+- status summary
+  - don't count resources that have never been executed in totals. (matches tilt web app behavior)
 - buttons
   - disable doesn't update resource tree ui state
   - ui buttons can only be triggered once.
@@ -12,16 +14,18 @@
   - animate log content replacement to make it obvious that log content changed
 - split pane
 - favorites
-- search
-- tree filtering
-  - search text
-  - toggle failed/successful/etc.
 - log filtering
   - filter by type of log (build, cluster, cmd, disabletoggle-\*, tiltfile)
+  - filter by container
+  - log line text search
 - user config
   - mutable keymap
   - user-defined log filters?
-- keyboard shortcut help modal
+- global actions
+  - actionbuttons e.g. NAV
+- status line
+  - show namespace/cluster info
+  - show AWS SSO session info
 
 ## Feature: Tree Navigation
 

@@ -330,9 +330,7 @@ export function Tree() {
       >
         <For each={nodes()}>
           {(node, index) => {
-            const isSelected = createMemo(
-              () => index() === cursor() && isFocused(),
-            );
+            const isSelected = createMemo(() => index() === cursor());
 
             if (node.type === "group") {
               return (
@@ -347,6 +345,7 @@ export function Tree() {
                 <ResourceNode
                   node={node}
                   isSelected={isSelected()}
+                  isFocused={isFocused()}
                   theme={theme}
                 />
               );
@@ -406,6 +405,7 @@ function GroupNode(props: {
 function ResourceNode(props: {
   node: TreeNode;
   isSelected: boolean;
+  isFocused: boolean;
   theme: Theme;
 }) {
   const r = () => props.node.resource!;
@@ -450,12 +450,27 @@ function ResourceNode(props: {
     return props.theme.textMuted; // Always muted for subheading
   });
 
+  const backgroundColor = createMemo(() => {
+    if (props.isSelected && props.isFocused) {
+      return props.theme.primary;
+    }
+
+    if (props.isSelected) {
+      return props.theme.secondary;
+    }
+
+    return undefined;
+  });
+
   return (
-    <box flexDirection="column" marginLeft={1}>
+    <box
+      flexDirection="column"
+      marginLeft={1}
+      backgroundColor={backgroundColor()}
+    >
       {/* Line 1: Resource name - runtime status border */}
       <box
         flexDirection="row"
-        backgroundColor={props.isSelected ? props.theme.primary : undefined}
         border={["left"]}
         borderStyle="heavy"
         borderColor={runtimeColor()}
@@ -472,7 +487,6 @@ function ResourceNode(props: {
       {/* Line 2: Timestamp + duration - build status border */}
       <box
         flexDirection="row"
-        backgroundColor={props.isSelected ? props.theme.primary : undefined}
         border={["left"]}
         borderStyle="heavy"
         borderColor={buildColor()}
