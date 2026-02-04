@@ -1,5 +1,7 @@
 // Theme and styling utilities - using OpenCode theme structure
 
+import { StatusFilter } from "@/context/tilt";
+import { ResourceStatus } from "@/tilt/types";
 import { BorderStyle, BorderSides, RGBA } from "@opentui/core";
 
 // OpenCode theme color definitions (dark mode from opencode.json)
@@ -93,43 +95,14 @@ export function focusBorder(
   };
 }
 
-// Status colors
-
-export function runtimeStatusColor(theme: Theme, status: string): string {
+export function statusColor(theme: Theme, status: StatusFilter): string {
   switch (status) {
-    case "ok":
+    case ResourceStatus.Healthy:
       return theme.success;
-    case "pending":
-    case "in_progress":
+    case ResourceStatus.Pending:
+    case ResourceStatus.Building:
       return theme.warning;
-    case "error":
-      return theme.error;
-    default:
-      return theme.textMuted;
-  }
-}
-
-export function buildStatusColor(theme: Theme, status: string): string {
-  switch (status) {
-    case "ok":
-      return theme.success;
-    case "pending":
-    case "in_progress":
-      return theme.warning;
-    case "error":
-      return theme.error;
-    default:
-      return theme.textMuted;
-  }
-}
-
-export function statusColor(theme: Theme, status: string): string {
-  switch (status) {
-    case "ok":
-      return theme.success;
-    case "pending":
-      return theme.warning;
-    case "error":
+    case ResourceStatus.Unhealthy:
       return theme.error;
     default:
       return theme.textMuted;

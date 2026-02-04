@@ -1,5 +1,3 @@
-// Header component - connection status and resource counts
-
 import { createMemo, For, Show } from "solid-js";
 import { useTilt } from "../context/tilt";
 import {
@@ -7,9 +5,9 @@ import {
   connectionStatusIcon,
   connectionStatusColor,
   connectionStatusText,
-  type Theme,
 } from "../theme/theme";
-import type { Resource } from "../tilt/types";
+import { ResourceStatus, type Resource } from "../tilt/types";
+import { getEffectiveStatus } from "@/tilt/status-utils";
 
 interface StatusCounts {
   healthy: number;
@@ -18,61 +16,6 @@ interface StatusCounts {
   unhealthy: number;
   warning: number;
   disabled: number;
-}
-
-function getCombinedStatus(r: Resource): string {
-  const buildStat = getBuildStatus(r);
-  const runtimeStat = getRuntimeStatus(r);
-
-  if (buildStat !== "healthy" && buildStat !== "none") {
-    return buildStat;
-  }
-
-  if (runtimeStat === "none") {
-    return buildStat;
-  }
-
-  return runtimeStat;
-}
-
-function getBuildStatus(r: Resource): string {
-  if (r.isDisabled) return "disabled";
-
-  switch (r.updateStatus) {
-    case "in_progress":
-      return "building";
-    case "pending":
-      return "pending";
-    case "not_applicable":
-    case "none":
-    case "":
-      return "none";
-    case "error":
-      return "unhealthy";
-    case "ok":
-      return "healthy";
-    default:
-      return "none";
-  }
-}
-
-function getRuntimeStatus(r: Resource): string {
-  if (r.isDisabled) return "disabled";
-
-  switch (r.runtimeStatus) {
-    case "error":
-      return "unhealthy";
-    case "pending":
-      return "pending";
-    case "ok":
-      return "healthy";
-    case "not_applicable":
-    case "none":
-    case "":
-      return "none";
-    default:
-      return "none";
-  }
 }
 
 function hasWarning(r: Resource): boolean {
@@ -107,16 +50,16 @@ function calculateCounts(resources: Resource[]): StatusCounts {
       counts.warning++;
     }
 
-    const status = getCombinedStatus(r);
+    const status = getEffectiveStatus(r);
     switch (status) {
-      case "unhealthy":
+      case ResourceStatus.Unhealthy:
         counts.unhealthy++;
         break;
-      case "pending":
-      case "building":
+      case ResourceStatus.Pending:
+      case ResourceStatus.Building:
         counts.pending++;
         break;
-      case "healthy":
+      case ResourceStatus.Healthy:
         counts.healthy++;
         break;
     }

@@ -1,6 +1,14 @@
 // Tree component - resource list with grouping (sidebar)
 
-import { createSignal, createMemo, createEffect, on, For, Show, untrack } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  on,
+  For,
+  Show,
+  untrack,
+} from "solid-js";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
@@ -9,8 +17,6 @@ import { useKeyHandler } from "../keyboard/useKeyHandler";
 import {
   defaultTheme,
   type Theme,
-  runtimeStatusColor,
-  buildStatusColor,
   statusColor,
   formatRelativeTime,
   formatBuildDuration,
@@ -18,8 +24,9 @@ import {
 } from "../theme/theme";
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
-import { type Resource, getEffectiveStatus } from "../tilt/types";
+import { ResourceStatus, type Resource } from "../tilt/types";
 import { Commands } from "@/commands";
+import { getEffectiveStatus } from "@/tilt/status-utils";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -187,7 +194,10 @@ export function Tree() {
 
   // Calculate the row position for a given cursor index
   // Groups take 1 row, resources take 2 rows
-  function getRowPosition(cursorIndex: number): { top: number; height: number } {
+  function getRowPosition(cursorIndex: number): {
+    top: number;
+    height: number;
+  } {
     const nodeList = nodes();
     let row = 0;
     for (let i = 0; i < cursorIndex && i < nodeList.length; i++) {
@@ -405,14 +415,14 @@ function ResourceNode(props: {
   const runtimeColor = createMemo(() =>
     isDisabled()
       ? props.theme.textMuted
-      : runtimeStatusColor(props.theme, r().runtimeStatus),
+      : statusColor(props.theme, r().runtimeStatus),
   );
 
   // Build status color for line 2 border (muted if disabled)
   const buildColor = createMemo(() =>
     isDisabled()
       ? props.theme.textMuted
-      : buildStatusColor(props.theme, r().updateStatus),
+      : statusColor(props.theme, r().updateStatus),
   );
 
   const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));

@@ -1,6 +1,3 @@
-// Tilt data context provider
-// Uses Effection for structured concurrency and serial WebSocket message processing
-
 import {
   createContext,
   useContext,
@@ -8,7 +5,7 @@ import {
   onCleanup,
   type ParentProps,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import { createStore, produce } from "solid-js/store";
 import {
   run,
   each,
@@ -21,17 +18,25 @@ import {
 import { TiltClient } from "../tilt/client";
 import {
   type Resource,
-  type UIButton,
-  ButtonAction,
-  buttonActionFromUIButton,
+  type APIButton,
+  type ButtonAction,
+  buttonActionFromAPIButton,
   isDisableToggleButton,
+  ResourceStatus,
 } from "../tilt/types";
 import { LogStore } from "../tilt/logstore";
 import type { ConnectionStatus } from "../theme/theme";
 
-// Status filter for tree view
-export type StatusFilter = "all" | "error" | "pending" | "ok";
-const FILTER_ORDER: StatusFilter[] = ["all", "error", "pending", "ok"];
+export type StatusFilter =
+  | "all"
+  | (typeof ResourceStatus)[keyof typeof ResourceStatus];
+const FILTER_ORDER: StatusFilter[] = [
+  "all",
+  ResourceStatus.Healthy,
+  ResourceStatus.Unhealthy,
+  ResourceStatus.Building,
+  ResourceStatus.Pending,
+];
 
 interface TiltState {
   connectionStatus: ConnectionStatus;
@@ -146,7 +151,7 @@ export function TiltProvider(
     );
   }
 
-  function updateButtons(buttons: UIButton[]) {
+  function updateButtons(buttons: APIButton[]) {
     setState(
       produce((s) => {
         const { resources } = s;
@@ -161,7 +166,7 @@ export function TiltProvider(
           if (resourceName) {
             // Regular button - add to buttons list
             const existing = buttonMap.get(resourceName) ?? [];
-            existing.push(buttonActionFromUIButton(btn));
+            existing.push(buttonActionFromAPIButton(btn));
             buttonMap.set(resourceName, existing);
           }
         }

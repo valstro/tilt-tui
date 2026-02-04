@@ -1,13 +1,12 @@
 // Tilt API Client - TypeScript translation from Go
 
 import type {
-  ViewResponse,
-  Resource,
-  LogEntry,
-  LogList,
-  UIButton,
-  UIInputStatus,
-} from "./types";
+  APIViewResponse,
+  APILogList,
+  APIButton,
+  APIInputStatus,
+} from "./api-types";
+import type { Resource, LogEntry } from "./types";
 import { resourceFromAPIResource as convertResource } from "./types";
 import {
   resource,
@@ -32,7 +31,7 @@ export interface ResourcesUpdate {
 }
 
 export interface ButtonsUpdate {
-  buttons: UIButton[];
+  buttons: APIButton[];
 }
 
 /** @deprecated Use ResourcesUpdate instead */
@@ -40,7 +39,7 @@ export type TiltData = ResourcesUpdate;
 
 /** Logs update from WebSocket */
 export interface LogsUpdate {
-  logList: LogList;
+  logList: APILogList;
   /** Parsed log entries keyed by resource name */
   entries: Map<string, LogEntry[]>;
 }
@@ -136,7 +135,7 @@ export class TiltClient {
 
       ws.onmessage = (event) => {
         try {
-          const viewResp: ViewResponse = JSON.parse(event.data);
+          const viewResp: APIViewResponse = JSON.parse(event.data);
 
           if (viewResp.uiResources) {
             const resources = viewResp.uiResources.map(convertResource);
@@ -233,23 +232,23 @@ export class TiltClient {
 
   /**
    * Click a UI button
-   * @param button - The full UIButton object (includes resourceVersion needed for updates)
+   * @param button - The full APIButton object (includes resourceVersion needed for updates)
    * @param inputValues - Optional input values for buttons with inputs
-   * @returns The updated UIButton with new resourceVersion
+   * @returns The updated APIButton with new resourceVersion
    */
   async clickButton(
-    button: UIButton,
+    button: APIButton,
     inputValues: Record<string, any> = {},
     signal?: AbortSignal,
-  ): Promise<UIButton> {
+  ): Promise<APIButton> {
     // Build input statuses from the button's input specs and provided values
-    const inputStatuses: UIInputStatus[] = [];
+    const inputStatuses: APIInputStatus[] = [];
     for (const spec of button.spec.inputs ?? []) {
       const name = spec.name;
       const value = inputValues[name];
       const defined = value !== undefined;
 
-      const status: UIInputStatus = { name };
+      const status: APIInputStatus = { name };
 
       if (spec.text) {
         status.text = {
@@ -305,7 +304,7 @@ export class TiltClient {
     }
 
     // Return the updated button with new resourceVersion from server
-    const updatedButton: UIButton = await response.json();
+    const updatedButton: APIButton = await response.json();
 
     console.log("buttonclick response", {
       name: updatedButton.metadata.name,
@@ -389,7 +388,7 @@ function waitForWebSocketOpen(ws: WebSocket): Operation<void> {
  * Parse a LogList from the WebSocket into LogEntry objects grouped by resource name.
  * Returns a Map where keys are resource names and values are arrays of log entries.
  */
-export function parseLogList(logList: LogList): Map<string, LogEntry[]> {
+export function parseLogList(logList: APILogList): Map<string, LogEntry[]> {
   const result = new Map<string, LogEntry[]>();
 
   if (!logList.segments || !logList.spans) {

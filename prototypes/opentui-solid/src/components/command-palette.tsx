@@ -24,7 +24,7 @@ import {
   formatKeyDisplay,
   type Command,
 } from "../keyboard/keymap-utils";
-import type { UIButton } from "../tilt/types";
+import type { APIButton } from "../tilt/types";
 
 export interface PaletteOption {
   title: string;
@@ -33,8 +33,8 @@ export interface PaletteOption {
   category: string;
   command?: Command;
   url?: string;
-  /** Raw UIButton for API calls */
-  button?: UIButton;
+  /** Raw APIButton for API calls */
+  button?: APIButton;
 }
 
 interface CommandPaletteProps {

@@ -7,6 +7,9 @@
 - ui
   - more padding around tree items
 
+- types
+  - better parity with [tilt resource types](https://github.com/tilt-dev/tilt/blob/master/web/src/SidebarItem.tsx#L19) so that it's easier to express things like "currently building or deploying vs pending deploy"
+
 # ROADMAP
 
 - split pane
@@ -54,7 +57,7 @@ A one-button status filter toggle/cycle for the tree view.
 - if no resources exist in active status, don't show empty resource groups.
 - indicate active status in the treeview PaneHeader
 
-## Keyboard Shortcut Modal
+## Feature: Keyboard Shortcut Modal
 
 ### Goals
 

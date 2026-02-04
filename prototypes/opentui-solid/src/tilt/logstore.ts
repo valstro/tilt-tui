@@ -2,7 +2,7 @@
 // Stores log segments from WebSocket, provides incremental patch sets for rendering
 
 import { createSignal } from "solid-js";
-import type { LogList, LogSegment } from "./types";
+import type { APILogList, APILogSegment, APISpanSet } from "./api-types";
 
 /**
  * A processed log line ready for rendering.
@@ -46,7 +46,7 @@ export class LogStore {
   checkpoint: number = 0;
 
   // Raw segments storage
-  private segments: LogSegment[] = [];
+  private segments: APILogSegment[] = [];
 
   // Span metadata (maps spanId -> manifestName)
   private spans: Map<string, string> = new Map();
@@ -78,7 +78,7 @@ export class LogStore {
    * Handles checkpoint-based deduplication - if the server re-sends
    * segments we've already processed, they're skipped.
    */
-  append(logList: LogList): void {
+  append(logList: APILogList): void {
     const fromCheckpoint = logList.fromCheckpoint ?? 0;
     const toCheckpoint = logList.toCheckpoint ?? 0;
     let newSegments = logList.segments ?? [];
@@ -98,7 +98,8 @@ export class LogStore {
     }
 
     // Process span metadata
-    for (const [spanId, span] of Object.entries(logList.spans ?? {})) {
+    const spans = logList.spans ?? {};
+    for (const [spanId, span] of Object.entries(spans) as [string, APISpanSet | null][]) {
       if (span && !this.spans.has(spanId)) {
         this.spans.set(spanId, span.manifestName);
       }

@@ -8,8 +8,9 @@ import { useKeyboard } from "@opentui/solid";
 import { defaultTheme, statusColor } from "../theme/theme";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
-import { type Resource, getEffectiveStatus } from "../tilt/types";
+import { type Resource } from "../tilt/types";
 import { getGroupKey } from "./tree";
+import { getEffectiveStatus } from "@/tilt/status-utils";
 
 /**
  * Simple fuzzy match function.
@@ -48,7 +49,7 @@ interface ResourcePickerProps {
 export function ResourcePicker(props: ResourcePickerProps) {
   const theme = defaultTheme;
   const { state, selectResource, resetStatusFilter } = useTilt();
-  const { setResourcePickerOpen, setActivePane } = useFocus();
+  const { setActivePane } = useFocus();
 
   const [store, setStore] = createStore({
     selected: 0,
@@ -276,8 +277,7 @@ export function ResourcePicker(props: ResourcePickerProps) {
                 <For each={groupOptions}>
                   {(option) => {
                     const isSelected = createMemo(
-                      () =>
-                        option.resource.name === selected()?.resource.name,
+                      () => option.resource.name === selected()?.resource.name,
                     );
                     const status = () => getEffectiveStatus(option.resource);
 
