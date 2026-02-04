@@ -4,14 +4,12 @@
   - disable doesn't update resource tree ui state
   - ui buttons can only be triggered once.
 
-- ui
-  - more padding around tree items
-
-- types
-  - better parity with [tilt resource types](https://github.com/tilt-dev/tilt/blob/master/web/src/SidebarItem.tsx#L19) so that it's easier to express things like "currently building or deploying vs pending deploy"
-
 # ROADMAP
 
+- ui improvements
+  - more padding around tree items
+  - animate status indicator for resources with Building status
+  - animate log content replacement to make it obvious that log content changed
 - split pane
 - favorites
 - search
