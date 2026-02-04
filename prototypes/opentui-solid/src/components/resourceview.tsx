@@ -31,7 +31,7 @@ export function ResourceView() {
 
   const [autoScroll, setAutoScroll] = createSignal(true);
   const [xOffset, setXOffset] = createSignal(0);
-  
+
   // Checkpoint tracking for incremental log fetching
   const [checkpoint, setCheckpoint] = createSignal(0);
   const [renderedLines, setRenderedLines] = createSignal<StoredLine[]>([]);
@@ -195,8 +195,8 @@ export function ResourceView() {
             stickyScroll={autoScroll()}
             stickyStart="bottom"
           >
-            <Show
-              when={renderedLines().length > 0}
+            <For
+              each={renderedLines()}
               fallback={
                 <box paddingLeft={1} flexDirection="row">
                   <text fg={theme.textMuted}>
@@ -205,12 +205,10 @@ export function ResourceView() {
                 </box>
               }
             >
-              <For each={renderedLines()}>
-                {(entry) => (
-                  <LogLine entry={entry} theme={theme} xOffset={xOffset()} />
-                )}
-              </For>
-            </Show>
+              {(entry) => (
+                <LogLine entry={entry} theme={theme} xOffset={xOffset()} />
+              )}
+            </For>
           </scrollbox>
         )}
       </Show>
@@ -229,11 +227,7 @@ function stripAnsi(text: string): string {
   return text.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
-function LogLine(props: {
-  entry: StoredLine;
-  theme: Theme;
-  xOffset: number;
-}) {
+function LogLine(props: { entry: StoredLine; theme: Theme; xOffset: number }) {
   const timestamp = createMemo(() => {
     const t = new Date(props.entry.time);
     return t.toLocaleTimeString("en-US", {
