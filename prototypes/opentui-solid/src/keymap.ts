@@ -11,6 +11,19 @@ export const keymap: KeyMapping[] = [
     modifiers: { ctrl: true },
     command: Commands.PALETTE_OPEN,
     description: "palette",
+  },
+  {
+    modes: ["app"],
+    key: ":",
+    command: Commands.PALETTE_OPEN,
+    description: "palette",
+    showInHelp: true,
+  },
+  {
+    modes: ["app"],
+    key: "space",
+    command: Commands.RESOURCE_PICKER_OPEN,
+    description: "resource picker",
     showInHelp: true,
   },
   {
@@ -107,12 +120,6 @@ export const keymap: KeyMapping[] = [
   {
     modes: ["tree"],
     key: "return",
-    command: Commands.TREE_SELECT,
-    description: "select",
-  },
-  {
-    modes: ["tree"],
-    key: "space",
     command: Commands.TREE_SELECT,
     description: "select",
   },
