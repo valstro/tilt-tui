@@ -2,9 +2,8 @@
 
 - status summary
   - don't count resources that have never been executed in totals. (matches tilt web app behavior)
-- buttons
-  - disable doesn't update resource tree ui state
-  - ui buttons can only be triggered once.
+- resource tree
+  - when you're on a selected resource node, and the node list changes (based on active filters), the logs view doesn't update. e.g. select a node that's currently building while the building filter is active. that node will disappear and be replaced with the next building resource, and the logs won't update.
 
 # ROADMAP
 
