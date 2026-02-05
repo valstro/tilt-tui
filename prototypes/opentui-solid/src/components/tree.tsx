@@ -7,9 +7,14 @@ import {
   on,
   For,
   Show,
-  untrack,
 } from "solid-js";
-import type { ScrollBoxRenderable } from "@opentui/core";
+import {
+  blink,
+  hexToRgb,
+  parseColor,
+  RGBA,
+  type ScrollBoxRenderable,
+} from "@opentui/core";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
@@ -27,6 +32,7 @@ import { PaneHeader } from "./pane-header";
 import { ResourceStatus, type Resource } from "../tilt/types";
 import { Commands } from "@/commands";
 import { getEffectiveStatus } from "@/tilt/status-utils";
+import { useTimeline } from "@opentui/solid";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -411,18 +417,49 @@ function ResourceNode(props: {
   const r = () => props.node.resource!;
   const isDisabled = createMemo(() => r().isDisabled);
 
+  const [inProgressOpacity, setInProgressOpacity] = createSignal(0);
+  const timeline = useTimeline({
+    duration: 2000,
+    loop: true,
+  });
+
+  timeline.add(
+    { opacity: 0 },
+    {
+      opacity: 100,
+      duration: 2000,
+      ease: "inOutCirc",
+      onUpdate: ({ currentTime }) => {
+        const opacity = currentTime < 1000 ? currentTime : 2000 - currentTime;
+        // console.log(opacity, opacity * 0.001);
+        setInProgressOpacity(opacity * 0.001);
+      },
+    },
+    0,
+  );
+
+  const blinkWhenBuilding = (status: ResourceStatus, isBuilding: boolean) => {
+    if (isDisabled()) {
+      return props.theme.textMuted;
+    }
+
+    const hex = statusColor(props.theme, status);
+    if (!isBuilding) {
+      return hex;
+    }
+
+    const rgb = parseColor(hex);
+    return RGBA.fromValues(rgb.r, rgb.g, rgb.b, inProgressOpacity());
+  };
+
   // Runtime status color for line 1 border (muted if disabled)
   const runtimeColor = createMemo(() =>
-    isDisabled()
-      ? props.theme.textMuted
-      : statusColor(props.theme, r().runtimeStatus),
+    blinkWhenBuilding(r().runtimeStatus, r().isBuilding),
   );
 
   // Build status color for line 2 border (muted if disabled)
   const buildColor = createMemo(() =>
-    isDisabled()
-      ? props.theme.textMuted
-      : statusColor(props.theme, r().updateStatus),
+    blinkWhenBuilding(r().updateStatus, r().isBuilding),
   );
 
   const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));
@@ -479,8 +516,14 @@ function ResourceNode(props: {
         <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
           {r().name}
         </text>
-        <Show when={r().hasPending}>
-          <text fg={props.theme.warning}> ⟳</text>
+        <Show when={r().isBuilding}>
+          <text
+            style={{ opacity: inProgressOpacity() }}
+            fg={props.theme.warning}
+          >
+            {" "}
+            ⟳
+          </text>
         </Show>
       </box>
 

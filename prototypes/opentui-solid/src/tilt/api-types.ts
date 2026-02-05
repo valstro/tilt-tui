@@ -222,7 +222,7 @@ export function isDisabled(status: APIResourceStatus): boolean {
   );
 }
 
-export function hasPendingChanges(status: APIResourceStatus): boolean {
+export function isBuilding(status: APIResourceStatus): boolean {
   return !!status.pendingBuildSince && status.pendingBuildSince !== "";
 }
 

@@ -7,9 +7,8 @@ import {
   type APIInputSpec,
   getResourceType,
   isDisabled,
-  hasPendingChanges,
   getLastBuildError,
-  RuntimeStatus,
+  isBuilding,
 } from "./api-types";
 
 // Re-export API types that are used directly by consumers
@@ -86,7 +85,7 @@ export interface Resource {
   podName: string;
   endpoints: EndpointLink[];
   isDisabled: boolean;
-  hasPending: boolean;
+  isBuilding: boolean;
   order: number;
   buttons: ButtonAction[];
   /** The disable toggle button for this resource (if it exists) */
@@ -103,7 +102,7 @@ export function resourceFromAPIResource(apiResource: APIResource): Resource {
     updateStatus: buildStatus(apiResource),
     type: getResourceType(apiResource.status),
     isDisabled: isDisabled(apiResource.status),
-    hasPending: hasPendingChanges(apiResource.status),
+    isBuilding: isBuilding(apiResource.status),
     buildError: getLastBuildError(apiResource.status),
     order: apiResource.status.order,
     lastDeployAt: apiResource.status.lastDeployTime ?? "",
