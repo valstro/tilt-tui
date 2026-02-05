@@ -8,13 +8,7 @@ import {
   For,
   Show,
 } from "solid-js";
-import {
-  blink,
-  hexToRgb,
-  parseColor,
-  RGBA,
-  type ScrollBoxRenderable,
-} from "@opentui/core";
+import { type ScrollBoxRenderable } from "@opentui/core";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
@@ -29,10 +23,10 @@ import {
 } from "../theme/theme";
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
-import { ResourceStatus, type Resource } from "../tilt/types";
+import { type Resource } from "../tilt/types";
 import { Commands } from "@/commands";
 import { getEffectiveStatus } from "@/tilt/status-utils";
-import { useTimeline } from "@opentui/solid";
+import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -417,49 +411,18 @@ function ResourceNode(props: {
   const r = () => props.node.resource!;
   const isDisabled = createMemo(() => r().isDisabled);
 
-  const [inProgressOpacity, setInProgressOpacity] = createSignal(0);
-  const timeline = useTimeline({
-    duration: 2000,
-    loop: true,
+  const { opacity, getBlinkingColor } = useBlinkWhenBuilding({
+    theme: props.theme,
   });
-
-  timeline.add(
-    { opacity: 0 },
-    {
-      opacity: 100,
-      duration: 2000,
-      ease: "inOutCirc",
-      onUpdate: ({ currentTime }) => {
-        const opacity = currentTime < 1000 ? currentTime : 2000 - currentTime;
-        // console.log(opacity, opacity * 0.001);
-        setInProgressOpacity(opacity * 0.001);
-      },
-    },
-    0,
-  );
-
-  const blinkWhenBuilding = (status: ResourceStatus, isBuilding: boolean) => {
-    if (isDisabled()) {
-      return props.theme.textMuted;
-    }
-
-    const hex = statusColor(props.theme, status);
-    if (!isBuilding) {
-      return hex;
-    }
-
-    const rgb = parseColor(hex);
-    return RGBA.fromValues(rgb.r, rgb.g, rgb.b, inProgressOpacity());
-  };
 
   // Runtime status color for line 1 border (muted if disabled)
   const runtimeColor = createMemo(() =>
-    blinkWhenBuilding(r().runtimeStatus, r().isBuilding),
+    getBlinkingColor(r().runtimeStatus, r().isBuilding, isDisabled()),
   );
 
   // Build status color for line 2 border (muted if disabled)
   const buildColor = createMemo(() =>
-    blinkWhenBuilding(r().updateStatus, r().isBuilding),
+    getBlinkingColor(r().updateStatus, r().isBuilding, isDisabled()),
   );
 
   const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));
@@ -517,10 +480,7 @@ function ResourceNode(props: {
           {r().name}
         </text>
         <Show when={r().isBuilding}>
-          <text
-            style={{ opacity: inProgressOpacity() }}
-            fg={props.theme.warning}
-          >
+          <text style={{ opacity: opacity() }} fg={props.theme.warning}>
             {" "}
             ⟳
           </text>

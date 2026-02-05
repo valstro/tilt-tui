@@ -5,12 +5,13 @@ import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
 import { createEffect, createMemo, For, on, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme, statusColor } from "../theme/theme";
+import { defaultTheme } from "../theme/theme";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { type Resource } from "../tilt/types";
 import { getGroupKey } from "./tree";
 import { getEffectiveStatus } from "@/tilt/status-utils";
+import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
 
 /**
  * Simple fuzzy match function.
@@ -50,6 +51,7 @@ export function ResourcePicker(props: ResourcePickerProps) {
   const theme = defaultTheme;
   const { state, selectResource, resetStatusFilter } = useTilt();
   const { setActivePane } = useFocus();
+  const { getBlinkingColor } = useBlinkWhenBuilding({ theme });
 
   const [store, setStore] = createStore({
     selected: 0,
@@ -280,6 +282,14 @@ export function ResourcePicker(props: ResourcePickerProps) {
                       () => option.resource.name === selected()?.resource.name,
                     );
                     const status = () => getEffectiveStatus(option.resource);
+                    const dotColor = () =>
+                      isSelected()
+                        ? theme.background
+                        : getBlinkingColor(
+                            status(),
+                            option.resource.isBuilding,
+                            option.resource.isDisabled,
+                          );
 
                     return (
                       <box
@@ -292,15 +302,7 @@ export function ResourcePicker(props: ResourcePickerProps) {
                         gap={1}
                       >
                         {/* Status indicator dot */}
-                        <text
-                          fg={
-                            isSelected()
-                              ? theme.background
-                              : statusColor(theme, status())
-                          }
-                        >
-                          {"\u25CF"}
-                        </text>
+                        <text fg={dotColor()}>{"\u25CF"}</text>
 
                         {/* Resource name */}
                         <text
