@@ -22,7 +22,7 @@ import {
 } from "../theme/theme";
 import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
-import type { StoredLine } from "../tilt/logstore";
+import type { LogStore, StoredLine } from "../tilt/logstore";
 
 export function ResourceView() {
   const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
@@ -84,6 +84,15 @@ export function ResourceView() {
       },
     ),
   );
+
+  const clearLogs = () => {
+    if (!state.selectedResource) {
+      return;
+    }
+
+    const lines = logStore.manifestLog(state.selectedResource);
+    logStore.removeLines(lines);
+  };
 
   // Keyboard handling - only active when focused
   useKeyHandler(
@@ -157,6 +166,11 @@ export function ResourceView() {
           if (state.selectedResource) {
             triggerResource(state.selectedResource);
           }
+          break;
+        }
+        case Commands.CLEAR_LOGS: {
+          console.log("CLEAR LOGS");
+          clearLogs();
           break;
         }
       }

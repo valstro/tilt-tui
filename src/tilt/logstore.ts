@@ -99,7 +99,10 @@ export class LogStore {
 
     // Process span metadata
     const spans = logList.spans ?? {};
-    for (const [spanId, span] of Object.entries(spans) as [string, APISpanSet | null][]) {
+    for (const [spanId, span] of Object.entries(spans) as [
+      string,
+      APISpanSet | null,
+    ][]) {
       if (span && !this.spans.has(spanId)) {
         this.spans.set(spanId, span.manifestName);
       }
@@ -145,7 +148,10 @@ export class LogStore {
    * Get logs for a specific manifest/resource since a checkpoint.
    * This is the main method used by ResourceView components.
    */
-  manifestLogPatchSet(manifestName: string, fromCheckpoint: number): LogPatchSet {
+  manifestLogPatchSet(
+    manifestName: string,
+    fromCheckpoint: number,
+  ): LogPatchSet {
     const lines: StoredLine[] = [];
 
     // Scan from fromCheckpoint to find lines matching this manifest
@@ -167,6 +173,8 @@ export class LogStore {
   manifestLog(manifestName: string): StoredLine[] {
     return this.lines.filter((line) => line.manifestName === manifestName);
   }
+
+  removeLines(lines: StoredLine[]): void {}
 
   /**
    * Get the total number of stored lines.

@@ -13,6 +13,7 @@
   - animate log content replacement to make it obvious that log content changed
 - split pane
 - favorites
+- log clearing
 - log filtering
   - filter by type of log (build, cluster, cmd, disabletoggle-\*, tiltfile)
   - filter by container
@@ -25,6 +26,7 @@
 - status line
   - show namespace/cluster info
   - show AWS SSO session info
+- self-updating tui client
 
 ## Feature: Tree Navigation
 

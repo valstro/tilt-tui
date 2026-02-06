@@ -25,6 +25,7 @@ export const Commands = {
   SCROLL_PAGEUP: "scroll.pageup",
   SCROLL_PAGEDOWN: "scroll.pagedown",
   SCROLL_FOLLOW: "scroll.follow",
+  CLEAR_LOGS: "logs.clear",
 
   // Command palette
   PALETTE_OPEN: "palette.open",

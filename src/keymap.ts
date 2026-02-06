@@ -168,7 +168,7 @@ export const keymap: KeyMapping[] = [
     key: "l",
     command: Commands.SCROLL_RIGHT,
     description: "right",
-  }, // Combined with h
+  },
   {
     modes: ["resource"],
     key: "right",
@@ -192,5 +192,15 @@ export const keymap: KeyMapping[] = [
     key: "f",
     command: Commands.SCROLL_FOLLOW,
     description: "follow",
+  },
+  {
+    modes: ["resource"],
+    key: "u",
+    modifiers: {
+      ctrl: true,
+    },
+    command: Commands.CLEAR_LOGS,
+    description: "clear logs",
+    showInHelp: true,
   },
 ];

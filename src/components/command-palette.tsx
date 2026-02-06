@@ -92,7 +92,8 @@ export function CommandPalette(props: CommandPaletteProps) {
 
     // Group 3: Commands for app (static)
     const appBindings = getHelpMappingsForMode("app");
-    for (const mapping of appBindings) {
+    const modeBindings = getHelpMappingsForMode(focusState.activePane);
+    for (const mapping of appBindings.concat(modeBindings)) {
       result.push({
         title: mapping.description,
         value: `command:${mapping.command}`,
@@ -191,6 +192,7 @@ export function CommandPalette(props: CommandPaletteProps) {
   // Handle selection
   async function handleSelect() {
     const opt = selected();
+    console.log("handleselect", opt);
     if (!opt) return;
 
     if (opt.url) {
