@@ -30,6 +30,12 @@ import { runtimeStatus, buildStatus } from "./status-utils";
 
 export { API_BUTTON_ANNOTATION_TYPE, API_BUTTON_TOGGLE_DISABLE_TYPE };
 
+export enum ResourceName {
+  tiltfile = "(Tiltfile)",
+  all = "(all)",
+  starred = "(starred)",
+}
+
 // Processed types for UI display
 
 export interface LogEntry {
@@ -38,6 +44,36 @@ export interface LogEntry {
   level: string;
   text: string;
   source: string;
+}
+
+export type LogLevel = "INFO" | "WARN" | "ERROR";
+
+// A plaintext representation of a line of the log,
+// with metadata to render it in isolation.
+//
+// The metadata should be stored as primitive fields
+// so that React's default caching behavior will kick in.
+export interface LogLine {
+  // We assume that 'text' does not contain a newline
+  text: string;
+  manifestName: string;
+  level: LogLevel;
+  buildEvent?: string;
+  spanId: string;
+
+  // The index of this line in the LogStore StoredLine list.
+  storedLineIndex: number;
+}
+
+// Instructions on how to patch an existing log stream with new logs.
+// Includes:
+// - The lines to add. Some of these might patch existing lines.
+// - A client-side checkpoint, for determining the next patch
+//   Users of this API should not modify this. They should just pass it to
+//   the next invocation of the log getter. 0 indicates we will get all logs.
+export interface LogPatchSet {
+  lines: LogLine[];
+  checkpoint: number;
 }
 
 export interface EndpointLink {

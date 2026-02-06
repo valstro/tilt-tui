@@ -117,21 +117,23 @@ export interface APIResourceStatus {
 }
 
 export interface APILogSegment {
-  spanId: string;
   time: string;
   text: string;
   level: string;
+  spanId?: string;
+  fields?: Record<string, string>;
+  anchor?: boolean;
 }
 
-export interface APISpanSet {
-  manifestName: string;
+export interface APISpan {
+  manifestName?: string;
 }
 
 export interface APILogList {
   segments: APILogSegment[];
-  spans: Record<string, APISpanSet | null>;
-  fromCheckpoint: number;
-  toCheckpoint: number;
+  spans: Record<string, APISpan>;
+  fromCheckpoint?: number;
+  toCheckpoint?: number;
 }
 
 export interface APIButtonSpec {
