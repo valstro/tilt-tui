@@ -1,5 +1,7 @@
 # Tilt Tui
 
+![screenshot](./docs/tui-screenshot.png)
+
 ## Requirements
 
 - bun
