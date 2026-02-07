@@ -6,7 +6,7 @@
 // - ANSI color preservation
 // - Virtual scrolling with custom scrollbar
 
-import { FrameBufferRenderable, RGBA } from "@opentui/core";
+import { BoxRenderable, FrameBufferRenderable, RGBA } from "@opentui/core";
 import { useRenderer, onResize } from "@opentui/solid";
 import {
   createSignal,
@@ -21,7 +21,11 @@ import { LogBuffer, type VisibleRow } from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
-import type { Theme } from "../theme/theme";
+import { defaultTheme, Theme } from "../theme/theme";
+import debug from "debug";
+import { debuglog } from "node:util";
+
+const debugLog = debug("tilt-tui:logview");
 
 export interface LogBufferViewProps {
   /** The log store to read logs from */
@@ -98,7 +102,7 @@ export function LogBufferView(
   let frameBuffer: FrameBufferRenderable | null = null;
 
   // Container element reference for size tracking
-  let containerEl: HTMLElement | null = null;
+  let containerEl: BoxRenderable | null = null;
 
   // Pre-compute colors from theme
   const colors = createMemo(() => ({
@@ -116,6 +120,8 @@ export function LogBufferView(
    * Get the color for a log level.
    */
   function getLevelColor(level: string): RGBA {
+    return colors().accent;
+
     switch (level) {
       case "WARN":
         return colors().warn;
@@ -150,7 +156,7 @@ export function LogBufferView(
     buffer.height = h;
 
     if (containerEl) {
-      (containerEl as any).add(frameBuffer);
+      containerEl.add(frameBuffer);
     }
 
     renderVisibleLines();
@@ -210,9 +216,9 @@ export function LogBufferView(
   onResize((newWidth, newHeight) => {
     if (containerEl) {
       // Get actual container dimensions from layout
-      const el = containerEl as any;
-      const w = el.computedWidth ?? el.width ?? newWidth;
-      const h = el.computedHeight ?? el.height ?? newHeight;
+      const el = containerEl;
+      const w = el.width ?? newWidth;
+      const h = el.height ?? newHeight;
 
       if (w > 0 && h > 0 && (w !== width() || h !== height())) {
         setWidth(w);
@@ -263,10 +269,11 @@ export function LogBufferView(
   );
 
   // Render when version changes
-  createEffect(() => {
-    renderVersion();
-    renderVisibleLines();
-  });
+  createEffect(
+    on(renderVersion, () => {
+      renderVisibleLines();
+    }),
+  );
 
   /**
    * Render visible log lines to the FrameBuffer.
@@ -377,7 +384,9 @@ export function LogBufferView(
     const thumbRatio = h / totalRows;
     const thumbSize = Math.max(1, Math.floor(h * thumbRatio));
     const maxScrollTop = Math.max(1, totalRows - h);
-    const thumbPos = Math.floor((buffer.scrollTop / maxScrollTop) * (h - thumbSize));
+    const thumbPos = Math.floor(
+      (buffer.scrollTop / maxScrollTop) * (h - thumbSize),
+    );
 
     // Draw scrollbar track and thumb
     for (let y = 0; y < h; y++) {
@@ -440,28 +449,39 @@ export function LogBufferView(
 
   // --- Component ---
 
-  const Component = () => (
-    <box
-      ref={(el: any) => {
-        containerEl = el;
-        // Re-create frame buffer when container is available
-        if (el) {
-          // Get dimensions from computed layout
-          const w = el.computedWidth ?? el.width ?? 80;
-          const h = el.computedHeight ?? el.height ?? 20;
-          if (w > 0 && h > 0) {
-            setWidth(w);
-            setHeight(h);
-            buffer.width = w;
-            buffer.height = h;
-            buffer.recalculateWrapping();
-            createFrameBuffer();
-          }
-        }
-      }}
-      flexGrow={1}
-    />
-  );
+  function Component() {
+    return (
+      <box flexGrow={1}>
+        <box>
+          <text>WAHT THE EL</text>
+        </box>
+        <box
+          border={true}
+          borderColor={defaultTheme.error}
+          ref={(el: BoxRenderable) => {
+            containerEl = el;
+            // Re-create frame buffer when container is available
+            if (el) {
+              // Get dimensions from computed layout
+              const w = el.width ?? el.width ?? 80;
+              const h = el.width ?? el.height ?? 20;
+              debugLog("box dimensions", w, h);
+              debug;
+              if (w > 0 && h > 0) {
+                setWidth(w);
+                setHeight(h);
+                buffer.width = w;
+                buffer.height = h;
+                buffer.recalculateWrapping();
+                createFrameBuffer();
+              }
+            }
+          }}
+          flexGrow={1}
+        />
+      </box>
+    );
+  }
 
   return [Component, ref];
 }

@@ -7,6 +7,8 @@
 
 # ROADMAP
 
+0 UI Unit tests
+
 - ui improvements
   - more padding around tree items
   - animate status indicator for resources with Building status
