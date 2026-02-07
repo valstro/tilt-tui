@@ -287,7 +287,7 @@ class LogStore implements LogAlertIndex {
 
       // If this starts a warning or error, index it now.
       let level = newSegment.level;
-      if (newSegment.anchor && (level === "warn" || level === "error")) {
+      if (newSegment.anchor && (level === "WARN" || level === "ERROR")) {
         span.alerts.push({ level, lineIndex });
       }
     }

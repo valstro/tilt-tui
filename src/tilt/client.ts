@@ -398,13 +398,18 @@ export function parseLogList(logList: APILogList): Map<string, LogEntry[]> {
   // Build span to manifest mapping
   const spanToManifest = new Map<string, string>();
   for (const [spanId, span] of Object.entries(logList.spans)) {
-    if (span) {
+    if (span?.manifestName) {
       spanToManifest.set(spanId, span.manifestName);
     }
   }
 
   // Parse segments into LogEntry objects grouped by resource
   for (const seg of logList.segments) {
+    if (!seg.spanId) {
+      console.error("no spanid for segment", seg);
+      continue;
+    }
+
     const resourceName = spanToManifest.get(seg.spanId) ?? "";
 
     const entry: LogEntry = {

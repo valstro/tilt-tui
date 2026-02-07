@@ -61,7 +61,7 @@ export function ResourceView() {
   // Fetch new log lines when logStore updates
   createEffect(() => {
     const resourceName = state.selectedResource;
-    if (!resourceName) return;
+    if (!resourceName) return null;
 
     // Track logStore.version for reactivity
     logStore.version;
@@ -169,7 +169,6 @@ export function ResourceView() {
           break;
         }
         case Commands.CLEAR_LOGS: {
-          console.log("CLEAR LOGS");
           clearLogs();
           break;
         }

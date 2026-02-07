@@ -166,7 +166,7 @@ export function Tree() {
     on(
       () => state.selectedResource,
       (name) => {
-        if (!name) return;
+        if (!name) return null;
         const resource = state.resources.find((r) => r.name === name);
         if (resource) {
           const groupKey = getGroupKey(resource);
@@ -210,7 +210,7 @@ export function Tree() {
   // Scroll to keep cursor visible when it changes
   createEffect(
     on(cursor, (cursorIndex) => {
-      if (!scrollRef) return;
+      if (!scrollRef) return null;
 
       const { top: itemTop, height: itemHeight } = getRowPosition(cursorIndex);
       const scrollTop = scrollRef.scrollTop;
@@ -480,7 +480,7 @@ function ResourceNode(props: {
           {r().name}
         </text>
         <Show when={r().isBuilding}>
-          <text style={{ opacity: opacity() }} fg={props.theme.warning}>
+          <text opacity={opacity()} fg={props.theme.warning}>
             {" "}
             ⟳
           </text>

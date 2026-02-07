@@ -2,7 +2,7 @@
 // Stores log segments from WebSocket, provides incremental patch sets for rendering
 
 import { createSignal } from "solid-js";
-import type { APILogList, APILogSegment, APISpanSet } from "./api-types";
+import type { APILogList, APILogSegment, APISpan } from "./api-types";
 
 /**
  * A processed log line ready for rendering.
@@ -101,8 +101,13 @@ export class LogStore {
     const spans = logList.spans ?? {};
     for (const [spanId, span] of Object.entries(spans) as [
       string,
-      APISpanSet | null,
+      APISpan | null,
     ][]) {
+      if (!span?.manifestName) {
+        console.error("no manifest for span", span);
+        continue;
+      }
+
       if (span && !this.spans.has(spanId)) {
         this.spans.set(spanId, span.manifestName);
       }
@@ -111,6 +116,11 @@ export class LogStore {
     // Process segments into lines
     for (const segment of newSegments) {
       this.segments.push(segment);
+
+      if (!segment.spanId) {
+        console.error("log segment missing spanid", segment);
+        continue;
+      }
 
       const manifestName = this.spans.get(segment.spanId) ?? "";
       const line: StoredLine = {
@@ -174,7 +184,9 @@ export class LogStore {
     return this.lines.filter((line) => line.manifestName === manifestName);
   }
 
-  removeLines(lines: StoredLine[]): void {}
+  removeLines(_lines: StoredLine[]): void {
+    throw new Error("implement");
+  }
 
   /**
    * Get the total number of stored lines.

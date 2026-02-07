@@ -5,6 +5,9 @@ import { useKeyboard } from "@opentui/solid";
 import { handleKeyEvent } from "./handler";
 import { Mode, Command } from "./keymap-utils";
 import { useFocus } from "@/context/focus";
+import debug from "debug";
+
+const debugLog = debug("tilt-tui:keyboard");
 
 /**
  * Hook for handling keyboard events with declarative command mapping
@@ -23,7 +26,7 @@ export function useKeyHandler(
     // Skip if not enabled (e.g., not focused)
     if (!enabled()) return;
 
-    console.log("key event", event);
+    debugLog("key event", event);
 
     // Check if any modal is open (palette, resource picker, or help)
     const modalOpen = paletteOpen() || resourcePickerOpen() || helpOpen();

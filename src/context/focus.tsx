@@ -19,7 +19,6 @@ interface FocusContextValue {
   state: FocusState;
   setActivePane: (pane: Pane) => void;
   cyclePane: () => void;
-  cyclePaneReverse: () => void;
   sidebarVisible: () => boolean;
   toggleSidebar: () => void;
   paletteOpen: () => boolean;
@@ -58,17 +57,6 @@ export function FocusProvider(props: ParentProps) {
     });
   }
 
-  function cyclePaneReverse() {
-    setState("activePane", (current) => {
-      const next = current === "tree" ? "resource" : "tree";
-      // Expand sidebar when focusing tree
-      if (next === "tree" && !sidebarOpen()) {
-        setSidebarOpen(true);
-      }
-      return next;
-    });
-  }
-
   function sidebarVisible() {
     return sidebarOpen();
   }
@@ -91,7 +79,6 @@ export function FocusProvider(props: ParentProps) {
     state,
     setActivePane,
     cyclePane,
-    cyclePaneReverse,
     sidebarVisible,
     toggleSidebar,
     paletteOpen,

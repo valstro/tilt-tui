@@ -13,7 +13,6 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noUncheckedIndexedAccess": false,
     "customConditions": ["browser"],
     "paths": {
       "@/*": ["./src/*"]

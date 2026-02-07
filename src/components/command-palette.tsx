@@ -1,24 +1,14 @@
 // Command Palette component - filterable command list with grouping
 // Adapted from OpenCode's dialog-select.tsx
 
-import { RGBA, TextAttributes } from "@opentui/core";
+import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  Show,
-  untrack,
-} from "solid-js";
+import { createEffect, createMemo, For, on, Show, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
 import { defaultTheme } from "../theme/theme";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
-import { Commands } from "../commands";
 import {
   getHelpMappingsForMode,
   formatKeyDisplay,
@@ -192,7 +182,6 @@ export function CommandPalette(props: CommandPaletteProps) {
   // Handle selection
   async function handleSelect() {
     const opt = selected();
-    console.log("handleselect", opt);
     if (!opt) return;
 
     if (opt.url) {
@@ -348,16 +337,16 @@ export function CommandPalette(props: CommandPaletteProps) {
                         >
                           {option.title}
                           <Show when={option.description}>
-                            <span
-                              style={{
-                                fg: isSelected()
+                            <text
+                              fg={
+                                isSelected()
                                   ? theme.background
-                                  : theme.textMuted,
-                              }}
+                                  : theme.textMuted
+                              }
                             >
                               {" "}
                               {option.description}
-                            </span>
+                            </text>
                           </Show>
                         </text>
                       </box>

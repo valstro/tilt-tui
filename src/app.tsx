@@ -1,6 +1,6 @@
 // Main App component
 
-import { createSignal, Show } from "solid-js";
+import { onCleanup, Show } from "solid-js";
 import { useRenderer } from "@opentui/solid";
 import { TiltProvider } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
@@ -16,19 +16,23 @@ import { KeyboardHelp } from "./components/keyboard-help";
 import { defaultTheme } from "./theme/theme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
+import { KeyEvent } from "@opentui/core";
 
 function AppContent() {
   const renderer = useRenderer();
-  renderer.keyInput.on("keypress", (key) => {
+
+  // set up debug console activation
+  const debugKeyHandler = (key: KeyEvent) => {
     // Toggle with backtick key
     if (key.name === "`") {
       renderer.console.toggle();
     }
-  });
+  };
+  renderer.keyInput.on("keypress", debugKeyHandler);
+  onCleanup(() => renderer.keyInput.off("keypress", debugKeyHandler));
 
   const {
     cyclePane,
-    cyclePaneReverse,
     sidebarVisible,
     toggleSidebar,
     paletteOpen,
@@ -50,10 +54,8 @@ function AppContent() {
         toggleSidebar();
         break;
       case Commands.FOCUS_NEXT:
-        cyclePane();
-        break;
       case Commands.FOCUS_PREV:
-        cyclePaneReverse();
+        cyclePane();
         break;
       case Commands.PALETTE_OPEN:
         setPaletteOpen(true);
