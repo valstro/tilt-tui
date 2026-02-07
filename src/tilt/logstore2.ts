@@ -227,14 +227,11 @@ class LogStore implements LogAlertIndex {
   }
 
   private invokeUpdateCallbacks(e: LogUpdateEvent) {
-    window.requestAnimationFrame(() => {
-      // Make sure an exception in one callback doesn't affect the rest.
+    this.updateCallbacks.forEach((c) => {
       try {
-        this.updateCallbacks.forEach((c) => c(e));
+        c(e);
       } catch (e) {
-        window.requestAnimationFrame(() => {
-          throw e;
-        });
+        console.error("UpdateCallbackError", e);
       }
     });
   }

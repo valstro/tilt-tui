@@ -1,26 +1,6 @@
-import { describe, test, expect, beforeEach, beforeAll, afterAll, mock } from "bun:test";
+import { describe, test, expect, beforeEach, mock } from "bun:test";
 import LogStore, { LogUpdateAction, LogAlertIndex } from "./logstore2";
 import { APILogList, APILogSegment } from "./api-types";
-import { LogLine } from "./types";
-
-// Setup global window mock for tests (logstore2 uses window.requestAnimationFrame)
-const originalWindow = globalThis.window;
-beforeAll(() => {
-  (globalThis as any).window = {
-    requestAnimationFrame: (fn: FrameRequestCallback) => {
-      fn(0);
-      return 0;
-    },
-  };
-});
-
-afterAll(() => {
-  if (originalWindow) {
-    (globalThis as any).window = originalWindow;
-  } else {
-    delete (globalThis as any).window;
-  }
-});
 
 // Helper to create a basic log segment
 function createSegment(
@@ -63,10 +43,9 @@ describe("LogStore", () => {
     });
 
     test("appends a single log line", () => {
-      const logList = createLogList(
-        [createSegment("Hello world\n")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Hello world\n")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const lines = logStore.allLog();
@@ -97,10 +76,9 @@ describe("LogStore", () => {
     });
 
     test("strips trailing newline from text", () => {
-      const logList = createLogList(
-        [createSegment("Text with newline\n")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Text with newline\n")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const lines = logStore.allLog();
@@ -181,9 +159,27 @@ describe("LogStore", () => {
     test("overwrites lines with same progressID", () => {
       const logList = createLogList(
         [
-          createSegment("Progress 0%\n", "span:1", "INFO", "2024-01-01T00:00:00Z", { progressID: "dl1" }),
-          createSegment("Progress 50%\n", "span:1", "INFO", "2024-01-01T00:00:01Z", { progressID: "dl1" }),
-          createSegment("Progress 100%\n", "span:1", "INFO", "2024-01-01T00:00:02Z", { progressID: "dl1" }),
+          createSegment(
+            "Progress 0%\n",
+            "span:1",
+            "INFO",
+            "2024-01-01T00:00:00Z",
+            { progressID: "dl1" },
+          ),
+          createSegment(
+            "Progress 50%\n",
+            "span:1",
+            "INFO",
+            "2024-01-01T00:00:01Z",
+            { progressID: "dl1" },
+          ),
+          createSegment(
+            "Progress 100%\n",
+            "span:1",
+            "INFO",
+            "2024-01-01T00:00:02Z",
+            { progressID: "dl1" },
+          ),
         ],
         { "span:1": { manifestName: "resource-a" } },
       );
@@ -199,8 +195,20 @@ describe("LogStore", () => {
     test("does not overwrite lines with different progressID", () => {
       const logList = createLogList(
         [
-          createSegment("Download A: 100%\n", "span:1", "INFO", "2024-01-01T00:00:00Z", { progressID: "dl-a" }),
-          createSegment("Download B: 100%\n", "span:1", "INFO", "2024-01-01T00:00:01Z", { progressID: "dl-b" }),
+          createSegment(
+            "Download A: 100%\n",
+            "span:1",
+            "INFO",
+            "2024-01-01T00:00:00Z",
+            { progressID: "dl-a" },
+          ),
+          createSegment(
+            "Download B: 100%\n",
+            "span:1",
+            "INFO",
+            "2024-01-01T00:00:01Z",
+            { progressID: "dl-b" },
+          ),
         ],
         { "span:1": { manifestName: "resource-a" } },
       );
@@ -259,10 +267,9 @@ describe("LogStore", () => {
     });
 
     test("hasLinesForSpan returns correct values", () => {
-      const logList = createLogList(
-        [createSegment("Test\n", "span:1")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Test\n", "span:1")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
 
@@ -277,7 +284,14 @@ describe("LogStore", () => {
       const logList = createLogList(
         [
           createSegment("Normal log\n", "span:1", "INFO"),
-          createSegment("Warning message\n", "span:1", "WARN", "2024-01-01T00:00:00Z", undefined, true),
+          createSegment(
+            "Warning message\n",
+            "span:1",
+            "WARN",
+            "2024-01-01T00:00:00Z",
+            undefined,
+            true,
+          ),
         ],
         { "span:1": { manifestName: "resource-a" } },
       );
@@ -293,7 +307,14 @@ describe("LogStore", () => {
     test("indexes error log lines", () => {
       const logList = createLogList(
         [
-          createSegment("Error message\n", "span:1", "ERROR", "2024-01-01T00:00:00Z", undefined, true),
+          createSegment(
+            "Error message\n",
+            "span:1",
+            "ERROR",
+            "2024-01-01T00:00:00Z",
+            undefined,
+            true,
+          ),
         ],
         { "span:1": { manifestName: "resource-a" } },
       );
@@ -307,9 +328,7 @@ describe("LogStore", () => {
 
     test("does not index alerts without anchor flag", () => {
       const logList = createLogList(
-        [
-          createSegment("Error without anchor\n", "span:1", "ERROR"),
-        ],
+        [createSegment("Error without anchor\n", "span:1", "ERROR")],
         { "span:1": { manifestName: "resource-a" } },
       );
 
@@ -378,10 +397,7 @@ describe("LogStore", () => {
 
       // Resend with overlapping checkpoint
       const logList2 = createLogList(
-        [
-          createSegment("Original\n"),
-          createSegment("New\n"),
-        ],
+        [createSegment("Original\n"), createSegment("New\n")],
         { "span:1": { manifestName: "resource-a" } },
         0,
         2,
@@ -408,13 +424,12 @@ describe("LogStore", () => {
 
   describe("update callbacks", () => {
     test("invokes callback on append", () => {
-      const callback = mock((e: { action: LogUpdateAction }) => {});
+      const callback = mock((_: { action: LogUpdateAction }) => {});
       logStore.addUpdateListener(callback);
 
-      const logList = createLogList(
-        [createSegment("Test\n")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Test\n")], {
+        "span:1": { manifestName: "resource-a" },
+      });
       logStore.append(logList);
 
       expect(callback).toHaveBeenCalled();
@@ -422,14 +437,13 @@ describe("LogStore", () => {
     });
 
     test("removes callback correctly", () => {
-      const callback = mock((e: { action: LogUpdateAction }) => {});
+      const callback = mock((_: { action: LogUpdateAction }) => {});
       logStore.addUpdateListener(callback);
       logStore.removeUpdateListener(callback);
 
-      const logList = createLogList(
-        [createSegment("Test\n")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Test\n")], {
+        "span:1": { manifestName: "resource-a" },
+      });
       logStore.append(logList);
 
       expect(callback).not.toHaveBeenCalled();
@@ -438,10 +452,9 @@ describe("LogStore", () => {
 
   describe("span management", () => {
     test("registers new spans from log list", () => {
-      const logList = createLogList(
-        [createSegment("Test\n", "span:1")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Test\n", "span:1")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const spans = logStore.allSpans();
@@ -452,10 +465,7 @@ describe("LogStore", () => {
 
     test("returns spans for manifest", () => {
       const logList = createLogList(
-        [
-          createSegment("Test\n", "span:a"),
-          createSegment("Test\n", "span:b"),
-        ],
+        [createSegment("Test\n", "span:a"), createSegment("Test\n", "span:b")],
         {
           "span:a": { manifestName: "resource-a" },
           "span:b": { manifestName: "resource-b" },
@@ -490,10 +500,9 @@ describe("LogStore", () => {
     });
 
     test("handles empty span ID correctly", () => {
-      const logList = createLogList(
-        [createSegment("Default span\n", "")],
-        { "": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Default span\n", "")], {
+        "": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const lines = logStore.allLog();
@@ -544,7 +553,7 @@ describe("LogStore", () => {
     test("truncates logs when exceeding max length", () => {
       // Set a small max length for testing
       logStore.maxLogLength = 100;
-      
+
       const logList = createLogList(
         [
           createSegment("A".repeat(60) + "\n", "span:1"),
@@ -611,10 +620,9 @@ describe("LogStore", () => {
     });
 
     test("nextBuildSpan returns null for last build", () => {
-      const logList = createLogList(
-        [createSegment("Build 1\n", "build:1")],
-        { "build:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("Build 1\n", "build:1")], {
+        "build:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const nextSpan = logStore.nextBuildSpan("build:1");
@@ -672,12 +680,17 @@ describe("LogStore", () => {
       );
 
       logStore.append(logList);
-      const patchSet = logStore.starredLogPatchSet(["resource-a", "resource-c"], 0);
+      const patchSet = logStore.starredLogPatchSet(
+        ["resource-a", "resource-c"],
+        0,
+      );
 
       expect(patchSet.lines.length).toBe(2);
-      expect(patchSet.lines.map(l => l.manifestName)).toContain("resource-a");
-      expect(patchSet.lines.map(l => l.manifestName)).toContain("resource-c");
-      expect(patchSet.lines.map(l => l.manifestName)).not.toContain("resource-b");
+      expect(patchSet.lines.map((l) => l.manifestName)).toContain("resource-a");
+      expect(patchSet.lines.map((l) => l.manifestName)).toContain("resource-c");
+      expect(patchSet.lines.map((l) => l.manifestName)).not.toContain(
+        "resource-b",
+      );
     });
   });
 
@@ -704,10 +717,9 @@ describe("LogStore", () => {
     });
 
     test("handles empty segment text", () => {
-      const logList = createLogList(
-        [createSegment("", "span:1")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment("", "span:1")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const lines = logStore.allLog();
@@ -718,10 +730,9 @@ describe("LogStore", () => {
 
     test("handles very long log lines", () => {
       const longText = "X".repeat(10000) + "\n";
-      const logList = createLogList(
-        [createSegment(longText, "span:1")],
-        { "span:1": { manifestName: "resource-a" } },
-      );
+      const logList = createLogList([createSegment(longText, "span:1")], {
+        "span:1": { manifestName: "resource-a" },
+      });
 
       logStore.append(logList);
       const lines = logStore.allLog();

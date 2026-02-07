@@ -196,10 +196,12 @@ export function LogBufferView(
       if (patch.lines.length > 0) {
         buffer.appendLines(patch.lines);
         buffer.checkpoint = patch.checkpoint;
+        debugLog("onMount: loaded %d lines for %s", patch.lines.length, name);
       }
     }
 
-    createFrameBuffer();
+    // Don't create frame buffer here - wait for ref callback with dimensions
+    // createFrameBuffer() will be called from the ref callback when containerEl is set
   });
 
   // Cleanup on unmount
@@ -450,31 +452,47 @@ export function LogBufferView(
   // --- Component ---
 
   function Component() {
+    // Track if we've initialized
+    let initialized = false;
+
+    // Try to initialize with element dimensions
+    const tryInitialize = (el: BoxRenderable) => {
+      if (initialized) return;
+
+      const w = el.width;
+      const h = el.height;
+
+      // Only proceed if we have real computed dimensions
+      if (w && h && w > 0 && h > 0) {
+        debugLog("Initializing with dimensions: %dx%d", w, h);
+        setWidth(w);
+        setHeight(h);
+        buffer.width = w;
+        buffer.height = h;
+        buffer.recalculateWrapping();
+        createFrameBuffer();
+        initialized = true;
+
+        // Trigger initial render
+        setRenderVersion((v) => v + 1);
+      } else {
+        // Layout not computed yet, schedule a retry
+        debugLog("Dimensions not ready: %dx%d, retrying...", w, h);
+        setTimeout(() => {
+          if (containerEl) {
+            tryInitialize(containerEl);
+          }
+        }, 16); // Try again next frame
+      }
+    };
+
     return (
-      <box flexGrow={1}>
-        <box>
-          <text>WAHT THE EL</text>
-        </box>
+      <box flexGrow={1} flexDirection="column">
         <box
-          border={true}
-          borderColor={defaultTheme.error}
           ref={(el: BoxRenderable) => {
             containerEl = el;
-            // Re-create frame buffer when container is available
             if (el) {
-              // Get dimensions from computed layout
-              const w = el.width ?? el.width ?? 80;
-              const h = el.width ?? el.height ?? 20;
-              debugLog("box dimensions", w, h);
-              debug;
-              if (w > 0 && h > 0) {
-                setWidth(w);
-                setHeight(h);
-                buffer.width = w;
-                buffer.height = h;
-                buffer.recalculateWrapping();
-                createFrameBuffer();
-              }
+              tryInitialize(el);
             }
           }}
           flexGrow={1}
