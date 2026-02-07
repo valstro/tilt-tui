@@ -21,9 +21,8 @@ import { LogBuffer, type VisibleRow } from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
-import { defaultTheme, Theme } from "../theme/theme";
+import { Theme } from "../theme/theme";
 import debug from "debug";
-import { debuglog } from "node:util";
 
 const debugLog = debug("tilt-tui:logview");
 

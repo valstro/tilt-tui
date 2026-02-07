@@ -57,6 +57,9 @@ export function useBlinkWhenBuilding(
       duration,
       ease: "inOutCirc",
       onUpdate: ({ currentTime }) => {
+        // opacity value should look like ^. linear increase up to
+        // duration/2 then linear decrease back to zero for the
+        // remainder of the duration
         const halfDuration = duration / 2;
         const opacityValue =
           currentTime < halfDuration ? currentTime : duration - currentTime;

@@ -406,7 +406,7 @@ export function parseLogList(logList: APILogList): Map<string, LogEntry[]> {
   // Parse segments into LogEntry objects grouped by resource
   for (const seg of logList.segments) {
     if (!seg.spanId) {
-      console.error("no spanid for segment", seg);
+      console.warn("no spanid for segment", seg);
       continue;
     }
 
