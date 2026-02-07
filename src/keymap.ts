@@ -28,14 +28,6 @@ export const keymap: KeyMapping[] = [
   },
   {
     modes: ["app"],
-    key: "space",
-    modifiers: { ctrl: true },
-    command: Commands.RESOURCE_PICKER_OPEN,
-    description: "resource picker",
-    showInHelp: true,
-  },
-  {
-    modes: ["app"],
     key: "q",
     command: Commands.APP_QUIT,
     description: "quit",

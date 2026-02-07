@@ -337,16 +337,16 @@ export function CommandPalette(props: CommandPaletteProps) {
                         >
                           {option.title}
                           <Show when={option.description}>
-                            <text
-                              fg={
-                                isSelected()
+                            <span
+                              style={{
+                                fg: isSelected()
                                   ? theme.background
-                                  : theme.textMuted
-                              }
+                                  : theme.textMuted,
+                              }}
                             >
                               {" "}
                               {option.description}
-                            </text>
+                            </span>
                           </Show>
                         </text>
                       </box>
