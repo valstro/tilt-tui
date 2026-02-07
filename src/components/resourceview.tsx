@@ -114,17 +114,17 @@ export function ResourceView() {
         </Show>
       </PaneHeader>
 
-      {/* Log content - using high-performance LogBufferView */}
-      <Show
-        when={state.selectedResource}
-        fallback={
-          <box paddingLeft={1} flexGrow={1}>
+      {/* Logs buffer */}
+      <box marginLeft={1} flexGrow={1}>
+        <Show
+          when={state.selectedResource}
+          fallback={
             <text fg={theme.textMuted}>Select a resource to view logs.</text>
-          </box>
-        }
-      >
-        <LogView />
-      </Show>
+          }
+        >
+          <LogView />
+        </Show>
+      </box>
 
       {/* Sticky footer */}
       <box flexShrink={0}>
