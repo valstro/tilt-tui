@@ -225,7 +225,7 @@ export function isDisabled(status: APIResourceStatus): boolean {
 }
 
 export function isBuilding(status: APIResourceStatus): boolean {
-  return !!status.pendingBuildSince && status.pendingBuildSince !== "";
+  return status.updateStatus === "in_progress";
 }
 
 export function getLastBuildError(status: APIResourceStatus): string {

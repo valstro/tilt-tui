@@ -228,7 +228,7 @@ export function TiltProvider(
         yield* all([resourcesTask, buttonsTask, logsTask]);
 
         // Stream closed normally - reconnect
-        console.log("WebSocket stream closed, reconnecting...");
+        console.warn("WebSocket stream closed, reconnecting...");
       } catch (err) {
         console.error("WebSocket error:", err);
       }

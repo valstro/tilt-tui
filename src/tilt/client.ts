@@ -280,11 +280,6 @@ export class TiltClient {
       },
     };
 
-    console.log("buttonclick payload", {
-      name: payload.metadata.name,
-      resourceVersion: payload.metadata.resourceVersion,
-    });
-
     const response = await fetch(
       `${this.baseURL}/proxy/apis/tilt.dev/v1alpha1/uibuttons/${button.metadata.name}/status`,
       {
@@ -306,10 +301,6 @@ export class TiltClient {
     // Return the updated button with new resourceVersion from server
     const updatedButton: APIButton = await response.json();
 
-    console.log("buttonclick response", {
-      name: updatedButton.metadata.name,
-      resourceVersion: updatedButton.metadata.resourceVersion,
-    });
     return updatedButton;
   }
 

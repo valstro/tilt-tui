@@ -78,7 +78,6 @@ function AppContent() {
 
   // Handle palette selection
   function handlePaletteSelect(option: PaletteOption) {
-    console.log("paletteselect", option);
     if (option.command) {
       executeCommand(option.command);
     }
