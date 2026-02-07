@@ -624,6 +624,7 @@ class LogStore implements LogAlertIndex {
           buildEvent: storedLine.fields?.buildEvent,
           spanId: spanId,
           storedLineIndex: i,
+          time: storedLine.time,
         };
 
         this.lineCache[i] = line;

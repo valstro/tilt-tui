@@ -187,6 +187,13 @@ export const keymap: KeyMapping[] = [
   },
   {
     modes: ["resource"],
+    key: "t",
+    command: Commands.TOGGLE_TIMESTAMPS,
+    description: "toggle timestamps",
+    showInHelp: true,
+  },
+  {
+    modes: ["resource"],
     key: "u",
     modifiers: {
       ctrl: true,

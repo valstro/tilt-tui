@@ -63,6 +63,9 @@ export interface LogLine {
 
   // The index of this line in the LogStore StoredLine list.
   storedLineIndex: number;
+
+  // Timestamp of the log line (ISO 8601 format)
+  time?: string;
 }
 
 // Instructions on how to patch an existing log stream with new logs.

@@ -24,7 +24,7 @@ import {
   isDisableToggleButton,
   ResourceStatus,
 } from "../tilt/types";
-import { LogStore } from "../tilt/logstore";
+import LogStore from "../tilt/logstore2";
 import type { ConnectionStatus } from "../theme/theme";
 
 export type StatusFilter =
