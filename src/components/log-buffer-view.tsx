@@ -82,14 +82,21 @@ export interface LogBufferViewRef {
  * logRef.scrollBy(1);
  * ```
  */
+interface Dimensions {
+  width: number;
+  height: number;
+}
+
 export function LogBufferView(
   props: LogBufferViewProps,
 ): [() => JSX.Element, LogBufferViewRef] {
   const renderer = useRenderer();
 
-  // Viewport dimensions - updated on mount and resize
-  const [width, setWidth] = createSignal(80);
-  const [height, setHeight] = createSignal(20);
+  // Viewport dimensions - updated on mount and resize (single signal to avoid double triggers)
+  const [dimensions, setDimensions] = createSignal<Dimensions>({
+    width: 80,
+    height: 20,
+  });
 
   // Trigger re-renders when buffer state changes
   const [renderVersion, setRenderVersion] = createSignal(0);
@@ -119,8 +126,6 @@ export function LogBufferView(
    * Get the color for a log level.
    */
   function getLevelColor(level: string): RGBA {
-    return colors().accent;
-
     switch (level) {
       case "WARN":
         return colors().warn;
@@ -139,8 +144,7 @@ export function LogBufferView(
       frameBuffer.destroy();
     }
 
-    const w = width();
-    const h = height();
+    const { width: w, height: h } = dimensions();
 
     if (w <= 0 || h <= 0) return;
 
@@ -224,20 +228,11 @@ export function LogBufferView(
       setTimeout(() => {
         const w = el.width ?? newWidth;
         const h = el.height ?? newHeight;
-        console.log(
-          "onresize with delay w, h, neww, newh",
-          w,
-          h,
-          newWidth,
-          newHeight,
-        );
+        const current = dimensions();
 
-        if (w > 0 && h > 0 && (w !== width() || h !== height())) {
-          setWidth(w);
-          setHeight(h);
-          buffer.width = w;
-          buffer.height = h;
-          buffer.recalculateWrapping();
+        if (w > 0 && h > 0 && (w !== current.width || h !== current.height)) {
+          setDimensions({ width: w, height: h });
+          buffer.resize(w, h);
 
           if (frameBuffer) {
             frameBuffer.frameBuffer.resize(w, h);
@@ -296,8 +291,7 @@ export function LogBufferView(
     if (!frameBuffer) return;
 
     const fb = frameBuffer.frameBuffer;
-    const w = width();
-    const h = height();
+    const { width: w, height: h } = dimensions();
     const c = colors();
 
     // Clear buffer with background color
@@ -475,12 +469,10 @@ export function LogBufferView(
 
       // Only proceed if we have real computed dimensions
       if (w && h && w > 0 && h > 0) {
-        console.log("Initializing with dimensions: %dx%d", w, h);
-        setWidth(w);
-        setHeight(h);
-        buffer.width = w;
-        buffer.height = h;
-        buffer.recalculateWrapping();
+        debugLog("Initializing with dimensions: %dx%d", w, h);
+        setDimensions({ width: w, height: h });
+        buffer.resize(w, h);
+
         createFrameBuffer();
         initialized = true;
 
@@ -488,7 +480,7 @@ export function LogBufferView(
         setRenderVersion((v) => v + 1);
       } else {
         // Layout not computed yet, schedule a retry
-        console.log("Dimensions not ready: %dx%d, retrying...", w, h);
+        debugLog("Dimensions not ready: %dx%d, retrying...", w, h);
         setTimeout(() => {
           if (containerEl) {
             tryInitialize(containerEl);

@@ -92,6 +92,12 @@ export class LogBuffer {
     }
   }
 
+  resize(w: number, h: number): void {
+    this.width = w;
+    this.height = h;
+    this.recalculateWrapping();
+  }
+
   /**
    * Append new lines from LogStore patch.
    * Only wraps new lines - O(m) where m = new lines count.
@@ -265,8 +271,7 @@ export class LogBuffer {
     }
 
     const rows: string[] = [];
-    const continuationWidth =
-      availableWidth - this.CONTINUATION_PREFIX_WIDTH;
+    const continuationWidth = availableWidth - this.CONTINUATION_PREFIX_WIDTH;
 
     // First row gets full width
     const firstResult = this.wrapAtWord(fullLine, availableWidth);
@@ -378,4 +383,3 @@ export class LogBuffer {
     }
   }
 }
-
