@@ -35,6 +35,7 @@ This project uses bun as its runtime, not nodejs or browser.
 - `WebSocket` is built-in. Don't use `ws`.
 - Prefer `Bun.file` over `node:fs`'s readFile/writeFile
 - Bun.$`ls` instead of execa.
+- browser apis like `requestAnimationFrame` are not available.
 
 ## Testing the TUI
 

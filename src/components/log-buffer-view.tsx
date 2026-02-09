@@ -61,38 +61,22 @@ export interface LogBufferViewRef {
   readonly height: number;
 }
 
-/**
- * High-performance log view using FrameBufferRenderable.
- *
- * Returns a tuple of [Component, Ref] for use in parent components.
- * The ref provides scroll control methods.
- *
- * @example
- * ```tsx
- * const [LogView, logRef] = LogBufferView({
- *   logStore,
- *   manifestName: () => selectedResource,
- *   theme,
- *   showTimestamps: () => showTimestamps(),
- * });
- *
- * // Use in JSX
- * <LogView />
- *
- * // Control scrolling
- * logRef.scrollBy(1);
- * ```
- */
 interface Dimensions {
   width: number;
   height: number;
 }
 
+/**
+ * High-performance log view using FrameBufferRenderable.
+ *
+ * Returns a tuple of [Component, Ref] for use in parent components.
+ * The ref provides scroll control methods.
+ * ```
+ */
 export function LogBufferView(
   props: LogBufferViewProps,
 ): [() => JSX.Element, LogBufferViewRef] {
   const renderer = useRenderer();
-  const { sidebarVisible } = useFocus();
 
   // Viewport dimensions - updated on mount and resize (single signal to avoid double triggers)
   const [dimensions, setDimensions] = createSignal<Dimensions>({
@@ -124,9 +108,6 @@ export function LogBufferView(
     scrollThumb: RGBA.fromHex(props.theme.primary),
   }));
 
-  /**
-   * Get the color for a log level.
-   */
   function getLevelColor(level: string): RGBA {
     switch (level) {
       case "WARN":
@@ -138,9 +119,6 @@ export function LogBufferView(
     }
   }
 
-  /**
-   * Create or recreate the FrameBuffer with current dimensions.
-   */
   function createFrameBuffer(): void {
     if (frameBuffer) {
       frameBuffer.destroy();
@@ -186,9 +164,7 @@ export function LogBufferView(
     }
   }
 
-  // Setup on mount
   onMount(() => {
-    // Subscribe to logstore2 updates
     props.logStore.addUpdateListener(handleLogUpdate);
 
     // Initial load of existing logs
@@ -201,12 +177,8 @@ export function LogBufferView(
         debugLog("onMount: loaded %d lines for %s", patch.lines.length, name);
       }
     }
-
-    // Don't create frame buffer here - wait for ref callback with dimensions
-    // createFrameBuffer() will be called from the ref callback when containerEl is set
   });
 
-  // Cleanup on unmount
   onCleanup(() => {
     props.logStore.removeUpdateListener(handleLogUpdate);
 
@@ -219,10 +191,11 @@ export function LogBufferView(
   const reflowLogs = () => {
     const el = containerEl;
     if (el) {
-      // Get actual container dimensions from layout
       const w = el.width;
       const h = el.height;
       const current = dimensions();
+
+      console.log("reflowinglogs", w, h, current);
 
       if (w > 0 && h > 0 && (w !== current.width || h !== current.height)) {
         setDimensions({ width: w, height: h });
@@ -237,19 +210,6 @@ export function LogBufferView(
     }
   };
 
-  createEffect(
-    on(
-      sidebarVisible,
-      () => {
-        setTimeout(() => {
-          reflowLogs();
-        }, 500);
-      },
-      { defer: true },
-    ),
-  );
-
-  // Handle terminal resize
   onResize(() => {
     // re-flow buffer after a delay. the initial containerEl size doesn't
     // immediately update in the scope of this event handler.
@@ -483,7 +443,7 @@ export function LogBufferView(
 
       // Only proceed if we have real computed dimensions
       if (w && h && w > 0 && h > 0) {
-        debugLog("Initializing with dimensions: %dx%d", w, h);
+        console.log("Initializing with dimensions: %dx%d", w, h);
         setDimensions({ width: w, height: h });
         buffer.resize(w, h);
 
@@ -505,17 +465,16 @@ export function LogBufferView(
 
     return (
       <box
-        border={true}
-        borderColor={defaultTheme.error}
         flexGrow={1}
         flexDirection="column"
-        padding={0}
-        margin={0}
         ref={(el: BoxRenderable) => {
           containerEl = el;
           if (el) {
             tryInitialize(el);
           }
+        }}
+        onSizeChange={() => {
+          reflowLogs();
         }}
       ></box>
     );
