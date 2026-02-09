@@ -21,8 +21,9 @@ import { LogBuffer, type VisibleRow } from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
-import { Theme } from "../theme/theme";
+import { defaultTheme, Theme } from "../theme/theme";
 import debug from "debug";
+import { useFocus } from "@/context/focus";
 
 const debugLog = debug("tilt-tui:logview");
 
@@ -91,6 +92,7 @@ export function LogBufferView(
   props: LogBufferViewProps,
 ): [() => JSX.Element, LogBufferViewRef] {
   const renderer = useRenderer();
+  const { sidebarVisible } = useFocus();
 
   // Viewport dimensions - updated on mount and resize (single signal to avoid double triggers)
   const [dimensions, setDimensions] = createSignal<Dimensions>({
@@ -155,9 +157,6 @@ export function LogBufferView(
       flexGrow: 1,
     });
 
-    buffer.width = w;
-    buffer.height = h;
-
     if (containerEl) {
       containerEl.add(frameBuffer);
     }
@@ -217,31 +216,46 @@ export function LogBufferView(
     }
   });
 
-  // Handle terminal resize
-  onResize((newWidth, newHeight) => {
-    if (containerEl) {
+  const reflowLogs = () => {
+    const el = containerEl;
+    if (el) {
       // Get actual container dimensions from layout
-      const el = containerEl;
+      const w = el.width;
+      const h = el.height;
+      const current = dimensions();
 
-      // re-flow buffer after a delay. the initial containerEl size doesn't
-      // immediately update in the scope of this event handler.
-      setTimeout(() => {
-        const w = el.width ?? newWidth;
-        const h = el.height ?? newHeight;
-        const current = dimensions();
+      if (w > 0 && h > 0 && (w !== current.width || h !== current.height)) {
+        setDimensions({ width: w, height: h });
+        buffer.resize(w, h);
 
-        if (w > 0 && h > 0 && (w !== current.width || h !== current.height)) {
-          setDimensions({ width: w, height: h });
-          buffer.resize(w, h);
-
-          if (frameBuffer) {
-            frameBuffer.frameBuffer.resize(w, h);
-          }
-
-          setRenderVersion((v) => v + 1);
+        if (frameBuffer) {
+          frameBuffer.frameBuffer.resize(w, h);
         }
-      }, 100);
+
+        setRenderVersion((v) => v + 1);
+      }
     }
+  };
+
+  createEffect(
+    on(
+      sidebarVisible,
+      () => {
+        setTimeout(() => {
+          reflowLogs();
+        }, 500);
+      },
+      { defer: true },
+    ),
+  );
+
+  // Handle terminal resize
+  onResize(() => {
+    // re-flow buffer after a delay. the initial containerEl size doesn't
+    // immediately update in the scope of this event handler.
+    setTimeout(() => {
+      reflowLogs();
+    }, 100);
   });
 
   // Reset when manifest changes
@@ -490,17 +504,20 @@ export function LogBufferView(
     };
 
     return (
-      <box flexGrow={1} flexDirection="column">
-        <box
-          ref={(el: BoxRenderable) => {
-            containerEl = el;
-            if (el) {
-              tryInitialize(el);
-            }
-          }}
-          flexGrow={1}
-        />
-      </box>
+      <box
+        border={true}
+        borderColor={defaultTheme.error}
+        flexGrow={1}
+        flexDirection="column"
+        padding={0}
+        margin={0}
+        ref={(el: BoxRenderable) => {
+          containerEl = el;
+          if (el) {
+            tryInitialize(el);
+          }
+        }}
+      ></box>
     );
   }
 
