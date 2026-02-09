@@ -218,22 +218,34 @@ export function LogBufferView(
     if (containerEl) {
       // Get actual container dimensions from layout
       const el = containerEl;
-      const w = el.width ?? newWidth;
-      const h = el.height ?? newHeight;
 
-      if (w > 0 && h > 0 && (w !== width() || h !== height())) {
-        setWidth(w);
-        setHeight(h);
-        buffer.width = w;
-        buffer.height = h;
-        buffer.recalculateWrapping();
+      // re-flow buffer after a delay. the initial containerEl size doesn't
+      // immediately update in the scope of this event handler.
+      setTimeout(() => {
+        const w = el.width ?? newWidth;
+        const h = el.height ?? newHeight;
+        console.log(
+          "onresize with delay w, h, neww, newh",
+          w,
+          h,
+          newWidth,
+          newHeight,
+        );
 
-        if (frameBuffer) {
-          frameBuffer.frameBuffer.resize(w, h);
+        if (w > 0 && h > 0 && (w !== width() || h !== height())) {
+          setWidth(w);
+          setHeight(h);
+          buffer.width = w;
+          buffer.height = h;
+          buffer.recalculateWrapping();
+
+          if (frameBuffer) {
+            frameBuffer.frameBuffer.resize(w, h);
+          }
+
+          setRenderVersion((v) => v + 1);
         }
-
-        setRenderVersion((v) => v + 1);
-      }
+      }, 100);
     }
   });
 
@@ -463,7 +475,7 @@ export function LogBufferView(
 
       // Only proceed if we have real computed dimensions
       if (w && h && w > 0 && h > 0) {
-        debugLog("Initializing with dimensions: %dx%d", w, h);
+        console.log("Initializing with dimensions: %dx%d", w, h);
         setWidth(w);
         setHeight(h);
         buffer.width = w;
@@ -476,7 +488,7 @@ export function LogBufferView(
         setRenderVersion((v) => v + 1);
       } else {
         // Layout not computed yet, schedule a retry
-        debugLog("Dimensions not ready: %dx%d, retrying...", w, h);
+        console.log("Dimensions not ready: %dx%d, retrying...", w, h);
         setTimeout(() => {
           if (containerEl) {
             tryInitialize(containerEl);

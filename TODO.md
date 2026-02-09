@@ -4,11 +4,12 @@
   - don't count resources that have never been executed in totals. (matches tilt web app behavior)
 - resource tree
   - when you're on a selected resource node, and the node list changes (based on active filters), the logs view doesn't update. e.g. select a node that's currently building while the building filter is active. that node will disappear and be replaced with the next building resource, and the logs won't update.
+- screen resizing
+  - command help should adjust to screen width
 
 # ROADMAP
 
-0 UI Unit tests
-
+- UI Unit tests
 - ui improvements
   - more padding around tree items
   - animate status indicator for resources with Building status

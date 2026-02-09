@@ -12,6 +12,8 @@
 - Comments: Minimal comments, NO JSDoc. Only use comments to explain WHY something was done, not to describe what it's doing.
 - Naming: camelCase for variables/functions, PascalCase for classes/interfaces, UPPER_CASE for constants
 - Types: Strict TypeScript, use interfaces for options/configs, explicit return types for public APIs
+- Formatting: Prettier
+- Imports: Use explicit imports, group by: built-ins, external deps, internal modules
 
 ## Bun Guildelines
 
