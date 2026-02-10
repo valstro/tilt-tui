@@ -282,14 +282,15 @@ export function ResourcePicker(props: ResourcePickerProps) {
                       () => option.resource.name === selected()?.resource.name,
                     );
                     const status = () => getEffectiveStatus(option.resource);
-                    const dotColor = () =>
+                    const dotColor = createMemo(() =>
                       isSelected()
                         ? theme.background
                         : getBlinkingColor(
                             status(),
                             option.resource.isBuilding,
                             option.resource.isDisabled,
-                          );
+                          ),
+                    );
 
                     return (
                       <box
