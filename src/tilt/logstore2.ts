@@ -614,8 +614,13 @@ class LogStore implements LogAlertIndex {
         if (text[text.length - 1] === "\n") {
           text = text.substring(0, text.length - 1);
         }
-        if (text.match(/\r'/g)) {
-          text.replaceAll(/\r/g, "");
+        // Handle carriage returns: keep only text after the last \r
+        // This simulates terminal behavior where \r overwrites from line start
+        // Without this, we see buffer overflow rendering because of the midline
+        // \r's that tilt can return in log segments
+        if (text.includes("\r")) {
+          const lastCR = text.lastIndexOf("\r");
+          text = text.substring(lastCR + 1);
         }
         line = {
           text,
