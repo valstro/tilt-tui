@@ -368,11 +368,11 @@ class LogStore implements LogAlertIndex {
   }
 
   allLog(): LogLine[] {
-    return this.logHelper(this.spans, 0).lines;
+    return this.getPatchesForSpans(this.spans, 0).lines;
   }
 
   allLogPatchSet(checkpoint: number): LogPatchSet {
-    return this.logHelper(this.spans, checkpoint);
+    return this.getPatchesForSpans(this.spans, checkpoint);
   }
 
   spanLog(spanIds: string[]): LogLine[] {
@@ -385,7 +385,7 @@ class LogStore implements LogAlertIndex {
       }
     });
 
-    return this.logHelper(spans, 0).lines;
+    return this.getPatchesForSpans(spans, 0).lines;
   }
 
   allSpans(): { [key: string]: LogSpan } {
@@ -492,17 +492,17 @@ class LogStore implements LogAlertIndex {
       }
     }
 
-    return this.logHelper(spans, 0).lines;
+    return this.getPatchesForSpans(spans, 0).lines;
   }
 
   manifestLog(mn: string): LogLine[] {
     let spans = this.spansForManifest(mn);
-    return this.logHelper(spans, 0).lines;
+    return this.getPatchesForSpans(spans, 0).lines;
   }
 
   manifestLogPatchSet(mn: string, checkpoint: number): LogPatchSet {
     let spans = this.spansForManifest(mn);
-    return this.logHelper(spans, checkpoint);
+    return this.getPatchesForSpans(spans, checkpoint);
   }
 
   starredLogPatchSet(stars: string[], checkpoint: number): LogPatchSet {
@@ -513,7 +513,7 @@ class LogStore implements LogAlertIndex {
         result[spanId] = span;
       }
     }
-    return this.logHelper(result, checkpoint);
+    return this.getPatchesForSpans(result, checkpoint);
   }
 
   // Return all the logs for the given options.
@@ -521,14 +521,14 @@ class LogStore implements LogAlertIndex {
   // spansToLog: Filtering by an arbitrary set of spans.
   // checkpoint: Continuation from an earlier checkpoint, only returning lines updated
   //   since that checkpoint. Pass 0 to return all logs.
-  logHelper(
+  getPatchesForSpans(
     spansToLog: { [key: string]: LogSpan },
     checkpoint: number,
   ): LogPatchSet {
     let result: LogLine[] = [];
 
     // We want to print the log line-by-line, but we don't actually store the logs
-    // line-by-line. We store them as segments.
+    // line-by-line. We store them as segments because that's how the tilt api sends them
     //
     // This means we need to:
     // 1) At segment x,
@@ -614,12 +614,15 @@ class LogStore implements LogAlertIndex {
         if (text[text.length - 1] === "\n") {
           text = text.substring(0, text.length - 1);
         }
+        if (text.match(/\r'/g)) {
+          text.replaceAll(/\r/g, "");
+        }
         line = {
-          text: text,
+          text,
           level: storedLine.level as LogLevel,
           manifestName: span.manifestName,
           buildEvent: storedLine.fields?.buildEvent,
-          spanId: spanId,
+          spanId,
           storedLineIndex: i,
           time: storedLine.time,
         };

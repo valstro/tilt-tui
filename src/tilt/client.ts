@@ -137,6 +137,13 @@ export class TiltClient {
         try {
           const viewResp: APIViewResponse = JSON.parse(event.data);
 
+          if (viewResp.uiSession?.status.tiltfileKey) {
+            console.log(
+              "USING TILTFILE",
+              viewResp.uiSession?.status.tiltfileKey,
+            );
+          }
+
           if (viewResp.uiResources) {
             const resources = viewResp.uiResources.map(convertResource);
             resourcesSignal.send({
@@ -192,6 +199,12 @@ export class TiltClient {
         }
       }
     });
+  }
+
+  async getTiltArgs() {
+    // use the following command to get tilt getTiltArgs
+    // parse the args and return as a Record<string, string>
+    // EDITOR=cat tilt args
   }
 
   /**
