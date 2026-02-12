@@ -44,23 +44,25 @@ function calculateCounts(resources: Resource[]): StatusCounts {
       continue;
     }
 
-    counts.totalEnabled++;
-
     if (hasWarning(r)) {
       counts.warning++;
+      counts.totalEnabled++;
     }
 
     const status = getEffectiveStatus(r);
     switch (status) {
       case ResourceStatus.Unhealthy:
         counts.unhealthy++;
+        counts.totalEnabled++;
         break;
       case ResourceStatus.Pending:
       case ResourceStatus.Building:
         counts.pending++;
+        counts.totalEnabled++;
         break;
       case ResourceStatus.Healthy:
         counts.healthy++;
+        counts.totalEnabled++;
         break;
     }
   }
