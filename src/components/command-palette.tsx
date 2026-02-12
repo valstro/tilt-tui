@@ -311,9 +311,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                 {/* Options in category */}
                 <For each={categoryOptions}>
                   {(option) => {
-                    const isSelected = createMemo(
-                      () => option.value === selected()?.value,
-                    );
+                    const isSelected = () => option.value === selected()?.value;
 
                     return (
                       <box

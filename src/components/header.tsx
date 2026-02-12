@@ -68,6 +68,38 @@ function calculateCounts(resources: Resource[]): StatusCounts {
   return counts;
 }
 
+interface StatusItem {
+  icon: string;
+  text: string;
+  color: string;
+}
+
+interface StatusCountsProps {
+  narrow: boolean;
+  items: StatusItem[];
+  theme: typeof defaultTheme;
+}
+
+// Moved outside Header to avoid recreation on every render
+function StatusCounts(props: StatusCountsProps) {
+  const separator = () => (props.narrow ? " " : "  ");
+  return (
+    <box flexDirection="row" flexShrink={0}>
+      <For each={props.items}>
+        {(item, index) => (
+          <>
+            <Show when={index() > 0}>
+              <text fg={props.theme.textMuted}>{separator()}</text>
+            </Show>
+            <text fg={item.color}>{item.icon}</text>
+            <text fg={props.theme.text}> {item.text}</text>
+          </>
+        )}
+      </For>
+    </box>
+  );
+}
+
 interface HeaderProps {
   narrow?: boolean;
 }
@@ -112,12 +144,6 @@ export function Header(props: HeaderProps) {
   });
 
   // Build status count items with colors
-  interface StatusItem {
-    icon: string;
-    text: string;
-    color: string;
-  }
-
   const statusItems = createMemo((): StatusItem[] => {
     const items: StatusItem[] = [];
     const c = counts();
@@ -145,26 +171,6 @@ export function Header(props: HeaderProps) {
     return items;
   });
 
-  // Render status counts with individual colors
-  function StatusCounts(props: { narrow: boolean }) {
-    const separator = () => (props.narrow ? " " : "  ");
-    return (
-      <box flexDirection="row" flexShrink={0}>
-        <For each={statusItems()}>
-          {(item, index) => (
-            <>
-              <Show when={index() > 0}>
-                <text fg={theme.textMuted}>{separator()}</text>
-              </Show>
-              <text fg={item.color}>{item.icon}</text>
-              <text fg={theme.text}> {item.text}</text>
-            </>
-          )}
-        </For>
-      </box>
-    );
-  }
-
   // Narrow mode: stacked vertical layout for sidebar
   if (isNarrow()) {
     return (
@@ -183,7 +189,7 @@ export function Header(props: HeaderProps) {
         {/* Line 2: cluster context */}
         {/* <text fg={theme.textMuted}>{contextLine()}</text> */}
         {/* Line 3: status counts with colors */}
-        <StatusCounts narrow={true} />
+        <StatusCounts narrow={true} items={statusItems()} theme={theme} />
       </box>
     );
   }
@@ -206,7 +212,7 @@ export function Header(props: HeaderProps) {
         </text>
 
         {/* Right side: status counts with colors */}
-        <StatusCounts narrow={false} />
+        <StatusCounts narrow={false} items={statusItems()} theme={theme} />
       </box>
     </box>
   );

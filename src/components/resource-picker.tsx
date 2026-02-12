@@ -278,19 +278,18 @@ export function ResourcePicker(props: ResourcePickerProps) {
                 {/* Options in group */}
                 <For each={groupOptions}>
                   {(option) => {
-                    const isSelected = createMemo(
-                      () => option.resource.name === selected()?.resource.name,
-                    );
+                    // Plain accessors instead of createMemo - avoids memo creation per item
+                    const isSelected = () =>
+                      option.resource.name === selected()?.resource.name;
                     const status = () => getEffectiveStatus(option.resource);
-                    const dotColor = createMemo(() =>
+                    const dotColor = () =>
                       isSelected()
                         ? theme.background
                         : getBlinkingColor(
                             status(),
                             option.resource.isBuilding,
                             option.resource.isDisabled,
-                          ),
-                    );
+                          );
 
                     return (
                       <box

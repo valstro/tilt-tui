@@ -157,13 +157,23 @@ export class LogBuffer {
   /**
    * Get rows currently visible in the viewport.
    * Returns an array of VisibleRow objects with text, level, and continuation info.
+   * Uses binary search to find the starting line - O(log n + viewport) instead of O(n).
    */
   getVisibleRows(): VisibleRow[] {
     const result: VisibleRow[] = [];
 
-    for (const wrapped of this.wrappedLines) {
-      for (let i = 0; i < wrapped.displayRows.length; i++) {
-        const displayRow = wrapped.startRow + i;
+    if (this.wrappedLines.length === 0) {
+      return result;
+    }
+
+    // Binary search to find the first wrapped line that contains visible rows
+    const startIdx = this.findFirstVisibleLineIndex(this._scrollTop);
+
+    for (let i = startIdx; i < this.wrappedLines.length; i++) {
+      const wrapped = this.wrappedLines[i];
+
+      for (let j = 0; j < wrapped.displayRows.length; j++) {
+        const displayRow = wrapped.startRow + j;
 
         // Skip rows before viewport
         if (displayRow < this._scrollTop) {
@@ -176,15 +186,47 @@ export class LogBuffer {
         }
 
         result.push({
-          text: wrapped.displayRows[i],
+          text: wrapped.displayRows[j],
           level: wrapped.line.level,
-          isContinuation: i > 0,
+          isContinuation: j > 0,
           line: wrapped.line,
         });
+      }
+
+      // Early exit if we've filled the viewport
+      if (result.length >= this.height) {
+        return result;
       }
     }
 
     return result;
+  }
+
+  /**
+   * Binary search to find the index of the first wrapped line that contains
+   * rows at or after the given scrollTop position.
+   */
+  private findFirstVisibleLineIndex(scrollTop: number): number {
+    if (this.wrappedLines.length === 0) return 0;
+
+    let lo = 0;
+    let hi = this.wrappedLines.length - 1;
+
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const wrapped = this.wrappedLines[mid];
+      const endRow = wrapped.startRow + wrapped.displayRows.length;
+
+      if (endRow <= scrollTop) {
+        // This line ends before the viewport, search later
+        lo = mid + 1;
+      } else {
+        // This line contains or is after the viewport start
+        hi = mid;
+      }
+    }
+
+    return lo;
   }
 
   // --- Scroll API ---

@@ -7,8 +7,9 @@ import {
   on,
   For,
   Show,
+  type Accessor,
 } from "solid-js";
-import { type ScrollBoxRenderable } from "@opentui/core";
+import { type ScrollBoxRenderable, type RGBA } from "@opentui/core";
 import { createStore } from "solid-js/store";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
@@ -23,7 +24,7 @@ import {
 } from "../theme/theme";
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
-import { type Resource } from "../tilt/types";
+import { type Resource, ResourceStatus } from "../tilt/types";
 import { Commands } from "@/commands";
 import { getEffectiveStatus } from "@/tilt/status-utils";
 import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
@@ -140,11 +141,26 @@ export function Tree() {
 
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Filter resources by status
-  const filteredResources = createMemo(() => {
+  // Lift blink animation to parent - single interval instead of one per resource
+  const { opacity, getBlinkingColor } = useBlinkWhenBuilding({ theme });
+
+  // Consolidated memo: filter resources and build tree nodes in one pass
+  // Avoids intermediate memo overhead from chained dependencies
+  const nodes = createMemo(() => {
     const filter = state.statusFilter;
-    if (filter === "all") return state.resources;
-    return state.resources.filter((r) => getEffectiveStatus(r) === filter);
+    const resources =
+      filter === "all"
+        ? state.resources
+        : state.resources.filter((r) => getEffectiveStatus(r) === filter);
+    return buildTreeNodes(resources, expandedGroups);
+  });
+
+  // Derived: count of filtered resources for header display
+  const filteredResourceCount = createMemo(() => {
+    const filter = state.statusFilter;
+    if (filter === "all") return state.resources.length;
+    return state.resources.filter((r) => getEffectiveStatus(r) === filter)
+      .length;
   });
 
   // Reset cursor when filter changes
@@ -155,10 +171,6 @@ export function Tree() {
         setCursor(0);
       },
     ),
-  );
-
-  const nodes = createMemo(() =>
-    buildTreeNodes(filteredResources(), expandedGroups),
   );
 
   // Auto-expand group and set cursor when resource is selected externally (e.g., from picker)
@@ -175,7 +187,12 @@ export function Tree() {
 
           // Find the cursor position for this resource in the nodes list
           // Need to rebuild nodes with the expanded group to find correct index
-          const updatedNodes = buildTreeNodes(filteredResources(), {
+          const filter = state.statusFilter;
+          const filtered =
+            filter === "all"
+              ? state.resources
+              : state.resources.filter((r) => getEffectiveStatus(r) === filter);
+          const updatedNodes = buildTreeNodes(filtered, {
             ...expandedGroups,
             [groupKey]: true,
           });
@@ -312,7 +329,7 @@ export function Tree() {
       paddingLeft={isFocused() ? 0 : 1}
       {...focusBorder(theme, isFocused())}
     >
-      <PaneHeader title={`Resources (${filteredResources().length})`}>
+      <PaneHeader title={`Resources (${filteredResourceCount()})`}>
         <Show when={state.statusFilter !== "all"}>
           <text fg={statusColor(theme, state.statusFilter)}>
             {" "}
@@ -347,6 +364,8 @@ export function Tree() {
                   isSelected={isSelected()}
                   isFocused={isFocused()}
                   theme={theme}
+                  opacity={opacity}
+                  getBlinkingColor={getBlinkingColor}
                 />
               );
             }
@@ -407,23 +426,24 @@ function ResourceNode(props: {
   isSelected: boolean;
   isFocused: boolean;
   theme: Theme;
+  // Blink animation lifted from parent - single interval for all resources
+  opacity: Accessor<number>;
+  getBlinkingColor: (
+    status: ResourceStatus,
+    isBuilding: boolean,
+    isDisabled?: boolean,
+  ) => string | RGBA;
 }) {
   const r = () => props.node.resource!;
-  const isDisabled = createMemo(() => r().isDisabled);
-
-  const { opacity, getBlinkingColor } = useBlinkWhenBuilding({
-    theme: props.theme,
-  });
+  const isDisabled = () => r().isDisabled;
 
   // Runtime status color for line 1 border (muted if disabled)
-  const runtimeColor = createMemo(() =>
-    getBlinkingColor(r().runtimeStatus, r().isBuilding, isDisabled()),
-  );
+  const runtimeColor = () =>
+    props.getBlinkingColor(r().runtimeStatus, r().isBuilding, isDisabled());
 
   // Build status color for line 2 border (muted if disabled)
-  const buildColor = createMemo(() =>
-    getBlinkingColor(r().updateStatus, r().isBuilding, isDisabled()),
-  );
+  const buildColor = () =>
+    props.getBlinkingColor(r().updateStatus, r().isBuilding, isDisabled());
 
   const lastUpdate = createMemo(() => formatRelativeTime(r().lastDeployAt));
   const buildDuration = createMemo(() => {
@@ -480,7 +500,7 @@ function ResourceNode(props: {
           {r().name}
         </text>
         <Show when={r().isBuilding}>
-          <text opacity={opacity()} fg={props.theme.warning}>
+          <text opacity={props.opacity()} fg={props.theme.warning}>
             {" "}
             ⟳
           </text>
