@@ -14,6 +14,7 @@ import {
   type Task,
   type Operation,
   all,
+  call,
 } from "effection";
 import { TiltClient } from "../tilt/client";
 import {
@@ -45,6 +46,7 @@ interface TiltState {
   resources: Resource[];
   selectedResource: string | null;
   statusFilter: StatusFilter;
+  tiltArgs: Record<string, string | undefined>;
 }
 
 interface TiltContextValue {
@@ -74,6 +76,7 @@ export function TiltProvider(
     resources: [],
     selectedResource: null,
     statusFilter: "all",
+    tiltArgs: {},
   });
 
   // Task handle for the main Effection operation
@@ -191,6 +194,9 @@ export function TiltProvider(
    * - logs: for log updates (replaces polling)
    */
   function* mainOperation(): Operation<void> {
+    const tiltArgs = yield* call(() => client.getTiltArgs());
+    setState("tiltArgs", tiltArgs);
+
     while (true) {
       setState("connectionStatus", "connecting");
 

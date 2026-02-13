@@ -1,5 +1,6 @@
 // Tilt API Client - TypeScript translation from Go
 
+import { parseArgs } from "util";
 import type {
   APIViewResponse,
   APILogList,
@@ -201,10 +202,67 @@ export class TiltClient {
     });
   }
 
-  async getTiltArgs() {
+  async getTiltArgs(): Promise<Record<string, string | undefined>> {
     // use the following command to get tilt getTiltArgs
     // parse the args and return as a Record<string, string>
-    // EDITOR=cat tilt args
+    //
+    // ❯ EDITOR=cat tilt args
+    // # edit args for the running Tilt here
+    // --environment FOO --reset-nx-cache
+    // Tilt is already running with those args -- no action taken
+
+    const tiltBinary = Bun.which("tilt");
+    if (!tiltBinary) {
+      console.error("unable to locate tilt binary in your environment");
+      return {};
+    }
+
+    const proc = Bun.spawn([tiltBinary, "args"], {
+      env: {
+        ...process.env,
+        // tilt args will open interactive editor if you don't change it
+        // cat will dump the contents of the temp file tilt args creates
+        EDITOR: "cat",
+        TILT_DISABLE_ANALYTICS: "true",
+        DO_NOT_TRACK: "true",
+      },
+
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const output = await new Response(proc.stdout).text();
+    const errorOutput = await new Response(proc.stderr).text();
+    const exitCode = await proc.exited;
+
+    if (exitCode !== 0) {
+      console.error("tilt args failed", exitCode, output, errorOutput);
+      return {};
+    }
+
+    // tilt args are on second line of output
+    const argsLine = output.split("\n")[1];
+    const args = argsLine.split(" ");
+
+    // TODO: expected args as config?
+    try {
+      const tiltArgs = parseArgs({
+        args,
+        strict: false,
+        options: {
+          environment: {
+            type: "string",
+          },
+        },
+      });
+
+      return {
+        environment: tiltArgs.values.environment,
+      };
+    } catch (e) {
+      console.error("error parsing tilt args", e);
+      return {};
+    }
   }
 
   /**

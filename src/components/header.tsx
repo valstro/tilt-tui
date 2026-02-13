@@ -107,7 +107,7 @@ interface HeaderProps {
 }
 
 export function Header(props: HeaderProps) {
-  const { state } = useTilt();
+  const { state, client } = useTilt();
   const theme = defaultTheme;
 
   const isNarrow = () => props.narrow ?? false;
@@ -136,13 +136,10 @@ export function Header(props: HeaderProps) {
     return text;
   });
 
-  // Build context line (only for narrow mode)
   const contextLine = createMemo(() => {
-    let text = state.clusterContext;
-    if (state.namespace) {
-      text += `/${state.namespace}`;
-    }
-    return text;
+    const tiltArgs = state.tiltArgs;
+
+    return tiltArgs.environment ?? "";
   });
 
   // Build status count items with colors
@@ -189,7 +186,7 @@ export function Header(props: HeaderProps) {
           {connectionStatusLine()}
         </text>
         {/* Line 2: cluster context */}
-        {/* <text fg={theme.textMuted}>{contextLine()}</text> */}
+        <text fg={theme.textMuted}>{contextLine()}</text>
         {/* Line 3: status counts with colors */}
         <StatusCounts narrow={true} items={statusItems()} theme={theme} />
       </box>

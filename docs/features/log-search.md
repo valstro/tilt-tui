@@ -8,6 +8,12 @@
 
 ## Design
 
+### Filtered LogsBuffer
+
+- all span separators (e.g. "Web Trigger", "Initial Build", etc.) remain present when showing filtered loglines
+- should highlight searched string in lines visible when filter active
+- use `esc` to clear all filters
+
 ### Search Filter
 
 - Use `/` to open search modal.
