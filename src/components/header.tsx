@@ -126,13 +126,7 @@ export function Header(props: HeaderProps) {
 
   // Build connection status text
   const connectionStatusLine = createMemo(() => {
-    let text = `${connectionIcon()} ${connectionText()}`;
-
-    if (state.namespace) {
-      text += ` | ${state.namespace}`;
-    }
-
-    return text;
+    return `${connectionIcon()} ${state.connectionStatus === "connected" ? (state.namespace ?? connectionText()) : connectionText()}`;
   });
 
   // Build status count items with colors
