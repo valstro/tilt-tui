@@ -90,13 +90,6 @@ function AppContent() {
       height="100%"
       backgroundColor={theme.background}
     >
-      {/* Header - only shown when sidebar is hidden */}
-      <Show when={!sidebarVisible()}>
-        <box flexShrink={0}>
-          <Header />
-        </box>
-      </Show>
-
       {/* Main content: Tree (sidebar) + ResourceView */}
       <box flexDirection="row" flexGrow={1}>
         <Show when={sidebarVisible()}>
@@ -121,6 +114,13 @@ function AppContent() {
       {/* Keyboard Help overlay */}
       <Show when={helpOpen()}>
         <KeyboardHelp onClose={() => setHelpOpen(false)} />
+      </Show>
+
+      {/* Header - only shown when sidebar is hidden */}
+      <Show when={!sidebarVisible()}>
+        <box flexShrink={0}>
+          <Header />
+        </box>
       </Show>
     </box>
   );

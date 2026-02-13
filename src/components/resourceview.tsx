@@ -13,7 +13,7 @@ import { LogBufferView, type LogBufferViewRef } from "./log-buffer-view";
 
 export function ResourceView() {
   const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
-  const { state: focusState } = useFocus();
+  const { state: focusState, sidebarVisible } = useFocus();
   const theme = defaultTheme;
 
   // Local state

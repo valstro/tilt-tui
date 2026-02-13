@@ -127,19 +127,12 @@ export function Header(props: HeaderProps) {
   // Build connection status text
   const connectionStatusLine = createMemo(() => {
     let text = `${connectionIcon()} ${connectionText()}`;
-    if (!isNarrow()) {
-      text += ` · ${state.clusterContext}`;
-      if (state.namespace) {
-        text += `/${state.namespace}`;
-      }
+
+    if (state.namespace) {
+      text += ` | ${state.namespace}`;
     }
+
     return text;
-  });
-
-  const contextLine = createMemo(() => {
-    const tiltArgs = state.tiltArgs;
-
-    return tiltArgs.environment ?? "";
   });
 
   // Build status count items with colors
@@ -154,7 +147,7 @@ export function Header(props: HeaderProps) {
       items.push({ icon: "⚠", text: `${c.warning}`, color: theme.warning });
     }
     if (c.pending > 0) {
-      items.push({ icon: "●", text: `${c.pending}`, color: theme.warning });
+      items.push({ icon: "●", text: `${c.pending}`, color: theme.textMuted });
     }
     if (c.totalEnabled > 0) {
       items.push({
@@ -181,13 +174,9 @@ export function Header(props: HeaderProps) {
         flexShrink={0}
         justifyContent="space-between"
       >
-        {/* Line 1: connection status */}
         <text fg={connectionColor()} attributes={1}>
           {connectionStatusLine()}
         </text>
-        {/* Line 2: cluster context */}
-        <text fg={theme.textMuted}>{contextLine()}</text>
-        {/* Line 3: status counts with colors */}
         <StatusCounts narrow={true} items={statusItems()} theme={theme} />
       </box>
     );
@@ -199,18 +188,18 @@ export function Header(props: HeaderProps) {
       backgroundColor={theme.contentPane}
       marginLeft={1}
       marginRight={1}
+      marginTop={0}
+      marginBottom={1}
       padding={1}
       paddingLeft={2}
       paddingRight={2}
       flexShrink={0}
     >
       <box flexDirection="row" justifyContent="space-between" width="100%">
-        {/* Left side: connection status */}
         <text fg={connectionColor()} attributes={1} flexShrink={0}>
           {connectionStatusLine()}
         </text>
 
-        {/* Right side: status counts with colors */}
         <StatusCounts narrow={false} items={statusItems()} theme={theme} />
       </box>
     </box>

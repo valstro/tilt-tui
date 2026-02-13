@@ -384,7 +384,7 @@ export function Tree() {
       >
         <text fg={theme.success}>●</text>
         <text fg={theme.textMuted}>ok</text>
-        <text fg={theme.warning}>●</text>
+        <text fg={theme.textMuted}>●</text>
         <text fg={theme.textMuted}>pending</text>
         <text fg={theme.error}>●</text>
         <text fg={theme.textMuted}>error</text>

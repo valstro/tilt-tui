@@ -41,12 +41,11 @@ const FILTER_ORDER: StatusFilter[] = [
 
 interface TiltState {
   connectionStatus: ConnectionStatus;
-  clusterContext: string;
   namespace: string;
   resources: Resource[];
   selectedResource: string | null;
   statusFilter: StatusFilter;
-  tiltArgs: Record<string, string | undefined>;
+  tiltArgs: Record<string, string | boolean | undefined>;
 }
 
 interface TiltContextValue {
@@ -71,7 +70,6 @@ export function TiltProvider(
 
   const [state, setState] = createStore<TiltState>({
     connectionStatus: "connecting",
-    clusterContext: "docker-desktop",
     namespace: "",
     resources: [],
     selectedResource: null,
@@ -117,16 +115,6 @@ export function TiltProvider(
           },
           [...s.resources],
         );
-
-        // Extract cluster context and namespace from resources
-        for (const r of s.resources) {
-          if (r.raw?.metadata?.annotations?.["tilt.dev/cluster"]) {
-            s.clusterContext = r.raw.metadata.annotations["tilt.dev/cluster"];
-          }
-          if (r.raw?.metadata?.labels?.["tilt.dev/namespace"]) {
-            s.namespace = r.raw.metadata.labels["tilt.dev/namespace"];
-          }
-        }
 
         // Auto-select first resource if none selected
         if (!s.selectedResource && s.resources.length > 0) {
@@ -196,6 +184,9 @@ export function TiltProvider(
   function* mainOperation(): Operation<void> {
     const tiltArgs = yield* call(() => client.getTiltArgs());
     setState("tiltArgs", tiltArgs);
+    if (tiltArgs.environment) {
+      setState("namespace", String(tiltArgs.environment));
+    }
 
     while (true) {
       setState("connectionStatus", "connecting");

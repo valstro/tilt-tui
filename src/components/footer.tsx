@@ -16,6 +16,7 @@ export function Footer() {
   return (
     <box
       padding={1}
+      paddingBottom={0}
       paddingLeft={2}
       paddingRight={2}
       flexShrink={0}
