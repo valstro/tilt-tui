@@ -101,9 +101,11 @@ export function statusColor(theme: Theme, status: StatusFilter): string {
       return theme.success;
     case ResourceStatus.Pending:
     case ResourceStatus.Building:
-      return theme.warning;
+      return theme.textMuted;
     case ResourceStatus.Unhealthy:
       return theme.error;
+    case ResourceStatus.Warning:
+      return theme.warning;
     default:
       return theme.textMuted;
   }

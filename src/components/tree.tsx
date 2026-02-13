@@ -499,12 +499,6 @@ function ResourceNode(props: {
         <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
           {r().name}
         </text>
-        <Show when={r().isBuilding}>
-          <text opacity={props.opacity()} fg={props.theme.warning}>
-            {" "}
-            ⟳
-          </text>
-        </Show>
       </box>
 
       {/* Line 2: Timestamp + duration - build status border */}

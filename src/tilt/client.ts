@@ -202,7 +202,7 @@ export class TiltClient {
     });
   }
 
-  async getTiltArgs(): Promise<Record<string, string | undefined>> {
+  async getTiltArgs(): Promise<Record<string, string | boolean | undefined>> {
     // use the following command to get tilt getTiltArgs
     // parse the args and return as a Record<string, string>
     //
