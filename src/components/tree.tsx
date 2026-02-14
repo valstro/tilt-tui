@@ -8,6 +8,7 @@ import {
   For,
   Show,
   type Accessor,
+  createSelector,
 } from "solid-js";
 import { type ScrollBoxRenderable, type RGBA } from "@opentui/core";
 import { createStore } from "solid-js/store";
@@ -135,6 +136,8 @@ export function Tree() {
   const theme = defaultTheme;
 
   const [cursor, setCursor] = createSignal(0);
+  const isSelected = createSelector(cursor);
+
   const [expandedGroups, setExpandedGroups] = createStore<
     Record<string, boolean>
   >({});
@@ -363,13 +366,13 @@ export function Tree() {
       >
         <For each={nodes()}>
           {(node, index) => {
-            const isSelected = createMemo(() => index() === cursor());
+            const isItemSelected = createMemo(() => isSelected(index()));
 
             if (node.type === "group") {
               return (
                 <GroupNode
                   node={node}
-                  isSelected={isSelected()}
+                  isSelected={isItemSelected()}
                   theme={theme}
                 />
               );
@@ -377,7 +380,7 @@ export function Tree() {
               return (
                 <ResourceNode
                   node={node}
-                  isSelected={isSelected()}
+                  isSelected={isItemSelected()}
                   isFocused={isFocused()}
                   theme={theme}
                   opacity={opacity}

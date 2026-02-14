@@ -8,8 +8,6 @@
   - up/down log scrolling keys stop working when you hide sidebar
   - log clearing doens't work
   - should show span separators between span segments. e.g. "initial build", "web trigger", "live reload", etc.
-  - new logs in new spans aren't appearing?
-  - long lines with `\r` break rending flow
 - resource picker search doens't prioritize exact match.
 - status indicator rendering issues, mostly with warning indicator.
 

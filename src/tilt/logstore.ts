@@ -15,6 +15,7 @@ export interface StoredLine {
   level: string;
   manifestName: string;
   storedLineIndex: number;
+  fields: Record<"buildEvent" | "progressID", string>;
 }
 
 /**
@@ -130,6 +131,7 @@ export class LogStore {
         level: segment.level,
         manifestName,
         storedLineIndex: this.lines.length,
+        fields: segment.fields,
       };
       this.lines.push(line);
     }

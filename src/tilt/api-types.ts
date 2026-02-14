@@ -121,7 +121,7 @@ export interface APILogSegment {
   text: string;
   level: string;
   spanId?: string;
-  fields?: Record<string, string>;
+  fields?: Record<"buildEvent" | "progressID", string>;
   anchor?: boolean;
 }
 

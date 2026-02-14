@@ -9,7 +9,6 @@ import { APILogSegment, LogLevel, LogLine, LogPatchSet } from "./types";
 // Firestore doesn't properly handle maps with keys equal to the empty string, so
 // we normalize all empty span ids to '_' client-side.
 const defaultSpanId = "_";
-const fieldNameProgressId = "progressID";
 
 const defaultMaxLogLength = 2 * 1000 * 1000;
 
@@ -36,19 +35,13 @@ type LogSpan = {
   alerts: LogAlert[];
 };
 
-type LogWarning = {
-  anchorIndex: number;
-  spanId: string;
-  text: string;
-};
-
 class StoredLine {
   spanId: string;
   time: string;
   text: string;
   level: string;
   anchor: boolean;
-  fields: { [key: string]: string } | null;
+  fields?: Record<"buildEvent" | "progressID", string>;
 
   constructor(seg: APILogSegment) {
     this.spanId = seg.spanId || defaultSpanId;
@@ -56,14 +49,7 @@ class StoredLine {
     this.text = seg.text ?? "";
     this.level = seg.level ?? "INFO";
     this.anchor = seg.anchor ?? false;
-    this.fields = (seg.fields as { [key: string]: string }) ?? null;
-  }
-
-  field(key: string) {
-    if (!this.fields) {
-      return "";
-    }
-    return this.fields[key] ?? "";
+    this.fields = seg.fields;
   }
 
   isComplete() {
@@ -243,6 +229,11 @@ class LogStore implements LogAlertIndex {
     this.logLength += newSegment.text?.length || 0;
 
     let candidate = new StoredLine(newSegment);
+
+    if (candidate.fields?.buildEvent) {
+      console.log(candidate);
+    }
+
     let spanId = candidate.spanId;
     let span = this.spans[spanId];
     if (!span) {
@@ -335,7 +326,7 @@ class LogStore implements LogAlertIndex {
   // If this line has a progress id, see if we can overwrite a previous line.
   // Return the index of the line we were able to overwrite, or -1 otherwise.
   private maybeOverwriteLine(candidate: StoredLine, span: LogSpan): number {
-    let progressId = candidate.field(fieldNameProgressId);
+    let progressId = candidate.fields?.progressID;
     if (!progressId) {
       return -1;
     }
@@ -351,7 +342,7 @@ class LogStore implements LogAlertIndex {
       }
 
       // If we're outside the "progress" zone, we couldn't find it.
-      let curProgressId = cur.field(fieldNameProgressId);
+      let curProgressId = cur.fields?.progressID;
       if (!curProgressId) {
         return -1;
       }

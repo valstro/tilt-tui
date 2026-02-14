@@ -294,11 +294,18 @@ export function LogBufferView(
     w: number,
     c: ReturnType<typeof colors>,
   ): void {
+    if (row.line.buildEvent) {
+      console.log("buildevent", row.line.buildEvent);
+    }
     if (row.isContinuation) {
       // Draw continuation indicator in accent color
       fb.drawText("↳", 0, y, c.accent, c.bg);
       // Draw rest of line dimmed, preserving ANSI colors
       drawAnsiText(fb, row.text.slice(2), 2, y, c.textMuted, c.bg, true, w);
+    } else if (row.line.buildEvent) {
+      // Draw build event highlighted line
+      const levelColor = getLevelColor(row.level);
+      drawAnsiText(fb, row.text, 0, y, levelColor, c.accent, false, w);
     } else {
       // Draw normal line with level color as default
       const levelColor = getLevelColor(row.level);
