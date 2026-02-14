@@ -13,7 +13,7 @@ import { LogBufferView, type LogBufferViewRef } from "./log-buffer-view";
 
 export function ResourceView() {
   const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
-  const { state: focusState, sidebarVisible } = useFocus();
+  const { state: focusState } = useFocus();
   const theme = defaultTheme;
 
   // Local state
@@ -115,7 +115,7 @@ export function ResourceView() {
       </PaneHeader>
 
       {/* Logs buffer */}
-      <box marginLeft={1} flexGrow={1}>
+      <box marginLeft={2} flexGrow={1}>
         <Show
           when={state.selectedResource}
           fallback={

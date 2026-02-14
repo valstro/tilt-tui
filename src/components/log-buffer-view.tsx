@@ -21,11 +21,7 @@ import { LogBuffer, type VisibleRow } from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
-import { defaultTheme, Theme } from "../theme/theme";
-import debug from "debug";
-import { useFocus } from "@/context/focus";
-
-const debugLog = debug("tilt-tui:logview");
+import { Theme } from "../theme/theme";
 
 export interface LogBufferViewProps {
   /** The log store to read logs from */
@@ -174,7 +170,6 @@ export function LogBufferView(
       if (patch.lines.length > 0) {
         buffer.appendLines(patch.lines);
         buffer.checkpoint = patch.checkpoint;
-        debugLog("onMount: loaded %d lines for %s", patch.lines.length, name);
       }
     }
   });
@@ -195,9 +190,8 @@ export function LogBufferView(
       const h = el.height;
       const current = dimensions();
 
-      console.log("reflowinglogs", w, h, current);
-
       if (w > 0 && h > 0 && (w !== current.width || h !== current.height)) {
+        console.log("reflowLogs: dimensions changed, resizing buffer");
         setDimensions({ width: w, height: h });
         buffer.resize(w, h);
 
@@ -282,6 +276,9 @@ export function LogBufferView(
 
     // Draw scrollbar in rightmost column
     drawScrollbar(fb, w, h, c);
+
+    // Request a render to flush framebuffer changes to screen
+    renderer.requestRender();
   }
 
   /**
@@ -294,9 +291,6 @@ export function LogBufferView(
     w: number,
     c: ReturnType<typeof colors>,
   ): void {
-    if (row.line.buildEvent) {
-      console.log("buildevent", row.line.buildEvent);
-    }
     if (row.isContinuation) {
       // Draw continuation indicator in accent color
       fb.drawText("↳", 0, y, c.accent, c.bg);
@@ -461,7 +455,6 @@ export function LogBufferView(
         setRenderVersion((v) => v + 1);
       } else {
         // Layout not computed yet, schedule a retry
-        debugLog("Dimensions not ready: %dx%d, retrying...", w, h);
         setTimeout(() => {
           if (containerEl) {
             tryInitialize(containerEl);

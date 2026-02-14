@@ -137,6 +137,9 @@ export class LogBuffer {
    * Call this when viewport width or timestamp visibility changes.
    */
   recalculateWrapping(): void {
+    // Preserve user's autoScroll preference across rewrap
+    const wasAutoScroll = this._autoScroll;
+
     this.wrappedLines = [];
     this.totalDisplayRows = 0;
 
@@ -151,7 +154,15 @@ export class LogBuffer {
     }
 
     // Clamp scroll position to valid range after rewrap
-    this.scrollTo(this._scrollTop);
+    const maxScroll = Math.max(0, this.totalDisplayRows - this.height);
+    this._scrollTop = Math.max(0, Math.min(this._scrollTop, maxScroll));
+
+    // Preserve autoScroll state if user explicitly disabled it (scrolled up)
+    // Only re-enable autoScroll if it was already enabled AND we're at the bottom
+    if (wasAutoScroll) {
+      this._autoScroll = this._scrollTop >= maxScroll;
+    }
+    // If autoScroll was false (user scrolled up), keep it false
   }
 
   /**

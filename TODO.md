@@ -5,7 +5,6 @@
 - screen resizing
   - command help should adjust to screen width. show fewer commands when screen is below a threshold
 - logs
-  - up/down log scrolling keys stop working when you hide sidebar
   - log clearing doens't work
   - should show span separators between span segments. e.g. "initial build", "web trigger", "live reload", etc.
 - resource picker search doens't prioritize exact match.

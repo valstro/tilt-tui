@@ -330,5 +330,55 @@ describe("LogBuffer", () => {
 
       expect(buffer.scrollTop).toBe(10);
     });
+
+    test("resize does not re-enable autoScroll when user has scrolled up", () => {
+      // Setup: narrow width so lines wrap more
+      buffer.showTimestamps = false;
+      buffer.width = 20;
+      buffer.height = 10;
+
+      // Create lines that will wrap at narrow width but not at wider width
+      const longLines = Array.from({ length: 20 }, (_, i) =>
+        makeLine("A".repeat(30), "INFO", i),
+      );
+      buffer.appendLines(longLines);
+
+      // Verify we have wrapped lines (totalDisplayRows > lineCount)
+      const rowsBefore = buffer.scrollHeight;
+      expect(rowsBefore).toBeGreaterThan(20);
+      expect(buffer.autoScroll).toBe(true);
+
+      // User scrolls up - this should disable autoScroll
+      buffer.scrollBy(-5);
+      expect(buffer.autoScroll).toBe(false);
+
+      // Simulate sidebar collapse: width increases, causing resize/rewrap
+      // Lines that wrapped before might now fit, reducing totalDisplayRows
+      buffer.resize(80, buffer.height);
+
+      // totalDisplayRows should have decreased since lines fit without wrapping
+      const rowsAfter = buffer.scrollHeight;
+      expect(rowsAfter).toBeLessThan(rowsBefore);
+
+      // autoScroll should STILL be false since user explicitly scrolled up
+      expect(buffer.autoScroll).toBe(false);
+    });
+
+    test("scrollBy works multiple times in succession", () => {
+      // Setup: buffer with enough content to scroll
+      buffer.appendLines(makeLines(100));
+
+      // Scroll up multiple times
+      for (let i = 0; i < 5; i++) {
+        const before = buffer.scrollTop;
+        buffer.scrollBy(-1);
+        expect(buffer.scrollTop).toBe(before - 1);
+      }
+
+      // Verify we're not stuck
+      expect(buffer.scrollTop).toBeLessThan(
+        buffer.scrollHeight - buffer.height - 4,
+      );
+    });
   });
 });

@@ -341,22 +341,6 @@ export function Tree() {
         </Show>
       </PaneHeader>
 
-      {/* Status legend */}
-      <box
-        alignSelf="center"
-        flexShrink={0}
-        paddingLeft={1}
-        flexDirection="row"
-        gap={1}
-      >
-        <text fg={theme.success}>|</text>
-        <text fg={theme.textMuted}>ok</text>
-        <text fg={theme.textMuted}>|</text>
-        <text fg={theme.textMuted}>pending</text>
-        <text fg={theme.error}>|</text>
-        <text fg={theme.textMuted}>error</text>
-      </box>
-
       {/* Tree content */}
       <scrollbox
         ref={(r: ScrollBoxRenderable) => (scrollRef = r)}
@@ -410,7 +394,6 @@ function GroupNode(props: {
   return (
     <box
       paddingLeft={1}
-      marginTop={1}
       flexDirection="row"
       backgroundColor={props.isSelected ? props.theme.primary : undefined}
     >
@@ -489,7 +472,7 @@ function ResourceNode(props: {
     <box
       flexDirection="column"
       marginLeft={1}
-      marginTop={1}
+      marginBottom={1}
       backgroundColor={backgroundColor()}
     >
       {/* Line 1: Resource name - runtime status border */}
