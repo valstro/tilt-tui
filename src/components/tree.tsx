@@ -213,7 +213,8 @@ export function Tree() {
   const isFocused = createMemo(() => focusState.activePane === "tree");
 
   // Calculate the row position for a given cursor index
-  // Groups take 1 row, resources take 2 rows
+  // Group Height: 1(content)
+  // Node Height: 2(content) + 1(marginBottom)
   function getRowPosition(cursorIndex: number): {
     top: number;
     height: number;
@@ -221,7 +222,7 @@ export function Tree() {
     const nodeList = nodes();
     let row = 0;
     for (let i = 0; i < cursorIndex && i < nodeList.length; i++) {
-      row += nodeList[i].type === "group" ? 1 : 2;
+      row += nodeList[i].type === "group" ? 1 : 3;
     }
     const height = nodeList[cursorIndex]?.type === "group" ? 1 : 2;
     return { top: row, height };
@@ -234,7 +235,8 @@ export function Tree() {
 
       const { top: itemTop, height: itemHeight } = getRowPosition(cursorIndex);
       const scrollTop = scrollRef.scrollTop;
-      const visibleRows = scrollRef.height ?? 10;
+      // Use viewport.height for the visible area, not scrollRef.height (total content height)
+      const visibleRows = scrollRef.viewport.height ?? 10;
 
       // Scroll up if item is above viewport
       if (itemTop < scrollTop) {
