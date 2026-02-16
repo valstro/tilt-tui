@@ -17,7 +17,12 @@ import {
   on,
   type JSX,
 } from "solid-js";
-import { LogBuffer, type VisibleRow } from "./log-buffer";
+import {
+  LogBuffer,
+  type VisibleRow,
+  type MatchRange,
+  type LogSearchFilter,
+} from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
@@ -47,6 +52,10 @@ export interface LogBufferViewRef {
   scrollToBottom: () => void;
   /** Toggle auto-scroll mode */
   toggleAutoScroll: () => void;
+  /** Set a search filter for log lines */
+  setSearchFilter: (filter: LogSearchFilter | null) => void;
+  /** Clear the search filter */
+  clearSearchFilter: () => void;
   /** Current auto-scroll state */
   readonly autoScroll: boolean;
   /** Current scroll position in display rows */
@@ -55,6 +64,10 @@ export interface LogBufferViewRef {
   readonly scrollHeight: number;
   /** Viewport height in rows */
   readonly height: number;
+  /** Whether filtering is active */
+  readonly isFiltering: boolean;
+  /** Number of lines matching the current filter */
+  readonly matchCount: number;
 }
 
 interface Dimensions {
@@ -102,6 +115,9 @@ export function LogBufferView(
     accent: RGBA.fromHex(props.theme.accent),
     scrollTrack: RGBA.fromHex(props.theme.textMuted),
     scrollThumb: RGBA.fromHex(props.theme.primary),
+    // Highlight color for search matches
+    highlight: RGBA.fromHex(props.theme.primary),
+    highlightBg: RGBA.fromHex("#3d3200"), // Dark yellow background for highlighting
   }));
 
   function getLevelColor(level: string): RGBA {
@@ -295,7 +311,24 @@ export function LogBufferView(
       // Draw continuation indicator in accent color
       fb.drawText("↳", 0, y, c.accent, c.bg);
       // Draw rest of line dimmed, preserving ANSI colors
-      drawAnsiText(fb, row.text.slice(2), 2, y, c.textMuted, c.bg, true, w);
+      // Adjust match positions for continuation prefix offset
+      const matches = row.matches
+        ?.map((m) => ({
+          start: Math.max(0, m.start - 2),
+          end: Math.max(0, m.end - 2),
+        }))
+        .filter((m) => m.end > 0);
+      drawAnsiText(
+        fb,
+        row.text.slice(2),
+        2,
+        y,
+        c.textMuted,
+        c.bg,
+        true,
+        w,
+        matches,
+      );
     } else if (row.line.buildEvent) {
       // Draw build event highlighted line
       const levelColor = getLevelColor(row.level);
@@ -303,12 +336,21 @@ export function LogBufferView(
     } else {
       // Draw normal line with level color as default
       const levelColor = getLevelColor(row.level);
-      drawAnsiText(fb, row.text, 0, y, levelColor, c.bg, false, w);
+      drawAnsiText(fb, row.text, 0, y, levelColor, c.bg, false, w, row.matches);
     }
   }
 
   /**
+   * Check if a position is within any of the match ranges.
+   */
+  function isInMatchRange(pos: number, matches?: MatchRange[]): boolean {
+    if (!matches) return false;
+    return matches.some((m) => pos >= m.start && pos < m.end);
+  }
+
+  /**
    * Draw text with ANSI color codes to the FrameBuffer.
+   * Optionally highlights matched ranges.
    */
   function drawAnsiText(
     fb: any,
@@ -319,9 +361,12 @@ export function LogBufferView(
     bg: RGBA,
     dimmed: boolean,
     maxWidth: number,
+    matches?: MatchRange[],
   ): void {
     const segments = parseAnsi(text);
     let x = startX;
+    // Track position in original text (before ANSI parsing)
+    let textPos = 0;
     const c = colors();
 
     for (const segment of segments) {
@@ -340,8 +385,15 @@ export function LogBufferView(
       for (const char of segment.text) {
         // Reserve rightmost column for scrollbar
         if (x >= maxWidth - 1) break;
-        fb.setCell(x, y, char, fg, bg);
+
+        // Check if this character is in a match range
+        const inMatch = isInMatchRange(textPos, matches);
+        const cellFg = inMatch ? c.highlight : fg;
+        const cellBg = inMatch ? c.highlightBg : bg;
+
+        fb.setCell(x, y, char, cellFg, cellBg);
         x++;
+        textPos++;
       }
     }
   }
@@ -412,6 +464,16 @@ export function LogBufferView(
       setRenderVersion((v) => v + 1);
     },
 
+    setSearchFilter: (filter: LogSearchFilter | null) => {
+      buffer.searchFilter = filter;
+      setRenderVersion((v) => v + 1);
+    },
+
+    clearSearchFilter: () => {
+      buffer.searchFilter = null;
+      setRenderVersion((v) => v + 1);
+    },
+
     get autoScroll() {
       return buffer.autoScroll;
     },
@@ -426,6 +488,14 @@ export function LogBufferView(
 
     get height() {
       return buffer.height;
+    },
+
+    get isFiltering() {
+      return buffer.isFiltering;
+    },
+
+    get matchCount() {
+      return buffer.matchCount;
     },
   };
 

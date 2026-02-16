@@ -1,7 +1,7 @@
 // ResourceView component - main content pane for selected resource
 // Uses LogBufferView for high-performance log rendering with FrameBuffer
 
-import { createSignal, createMemo, Show } from "solid-js";
+import { createSignal, createMemo, Show, createEffect, on } from "solid-js";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { useKeyHandler } from "../keyboard/useKeyHandler";
@@ -10,15 +10,23 @@ import { defaultTheme, focusBorder } from "../theme/theme";
 import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
 import { LogBufferView, type LogBufferViewRef } from "./log-buffer-view";
+import {
+  LogSearchModal,
+  parseSearchQuery,
+  type LogSearchFilter,
+} from "./log-search-modal";
 
 export function ResourceView() {
   const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
-  const { state: focusState } = useFocus();
+  const { state: focusState, logSearchOpen, setLogSearchOpen } = useFocus();
   const theme = defaultTheme;
 
   // Local state
   const [autoScroll, setAutoScroll] = createSignal(true);
   const [showTimestamps, setShowTimestamps] = createSignal(true);
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [isFiltering, setIsFiltering] = createSignal(false);
+  const [matchCount, setMatchCount] = createSignal(0);
 
   // Reference to LogBufferView for scroll control
   let logBufferRef: LogBufferViewRef | null = null;
@@ -83,9 +91,57 @@ export function ResourceView() {
           // For now, this is a no-op - can implement later if needed
           break;
         }
+        case Commands.LOG_SEARCH_OPEN: {
+          setLogSearchOpen(true);
+          break;
+        }
+        case Commands.LOG_SEARCH_CLEAR: {
+          // Clear search filter with escape
+          if (logBufferRef?.isFiltering) {
+            logBufferRef.clearSearchFilter();
+            setSearchQuery("");
+            setIsFiltering(false);
+            setMatchCount(0);
+          }
+          break;
+        }
       }
     },
-    isFocused,
+    // Disable keyboard handling when search modal is open
+    () => isFocused() && !logSearchOpen(),
+  );
+
+  // Handle search submission from modal
+  function handleSearch(filter: LogSearchFilter | null) {
+    if (filter) {
+      logBufferRef?.setSearchFilter(filter);
+      setSearchQuery(filter.query);
+      setIsFiltering(true);
+      // Update match count after filter is applied
+      setTimeout(() => {
+        setMatchCount(logBufferRef?.matchCount ?? 0);
+      }, 0);
+    } else {
+      logBufferRef?.clearSearchFilter();
+      setSearchQuery("");
+      setIsFiltering(false);
+      setMatchCount(0);
+    }
+  }
+
+  // Clear search when resource changes
+  createEffect(
+    on(
+      () => state.selectedResource,
+      () => {
+        if (isFiltering()) {
+          logBufferRef?.clearSearchFilter();
+          setSearchQuery("");
+          setIsFiltering(false);
+          setMatchCount(0);
+        }
+      },
+    ),
   );
 
   return (
@@ -100,6 +156,12 @@ export function ResourceView() {
     >
       {/* Sticky header */}
       <PaneHeader title={`Logs: ${state.selectedResource ?? ""}`}>
+        <Show when={isFiltering()}>
+          <text fg={theme.primary} flexShrink={0}>
+            {" "}
+            [/{searchQuery()}/: {matchCount()} matches]
+          </text>
+        </Show>
         <Show when={autoScroll()}>
           <text fg={theme.success} flexShrink={0}>
             {" "}
@@ -130,6 +192,15 @@ export function ResourceView() {
       <box flexShrink={0}>
         <Footer />
       </box>
+
+      {/* Log Search Modal overlay */}
+      <Show when={logSearchOpen()}>
+        <LogSearchModal
+          onClose={() => setLogSearchOpen(false)}
+          onSearch={handleSearch}
+          initialQuery={searchQuery()}
+        />
+      </Show>
     </box>
   );
 }

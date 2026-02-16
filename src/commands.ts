@@ -36,4 +36,8 @@ export const Commands = {
 
   // Help
   HELP_OPEN: "help.open",
+
+  // Log search/filter
+  LOG_SEARCH_OPEN: "logs.search.open",
+  LOG_SEARCH_CLEAR: "logs.search.clear",
 } as const;

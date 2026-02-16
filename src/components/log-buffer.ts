@@ -5,9 +5,22 @@
 // - Virtual scrolling (only renders visible rows)
 // - Timestamp toggle support
 // - Auto-scroll (follow) mode
+// - Search filtering with match highlighting
 
 import type { LogLine } from "../tilt/types";
 import { displayWidth } from "../utils/ansi-parser";
+
+/**
+ * Search filter configuration for log filtering.
+ */
+export interface LogSearchFilter {
+  /** The raw search query string */
+  query: string;
+  /** Whether this is a regex search */
+  isRegex: boolean;
+  /** Compiled regex if isRegex is true */
+  regex: RegExp | null;
+}
 
 /**
  * A wrapped line with its display rows and source reference.
@@ -22,6 +35,14 @@ interface WrappedLine {
 }
 
 /**
+ * A match range within text for highlighting.
+ */
+export interface MatchRange {
+  start: number;
+  end: number;
+}
+
+/**
  * A single row visible in the viewport.
  */
 export interface VisibleRow {
@@ -33,6 +54,8 @@ export interface VisibleRow {
   isContinuation: boolean;
   /** Reference to the source LogLine */
   line: LogLine;
+  /** Match ranges for highlighting search results */
+  matches?: MatchRange[];
 }
 
 /**
@@ -63,6 +86,18 @@ export class LogBuffer {
   /** Whether to show timestamps in the output */
   private _showTimestamps: boolean = true;
 
+  /** Current search filter (null means no filtering) */
+  private _searchFilter: LogSearchFilter | null = null;
+
+  /** Indices of filtered lines that match the search (null means show all) */
+  private filteredIndices: number[] | null = null;
+
+  /** Pre-computed wrapped lines for filtered view */
+  private filteredWrappedLines: WrappedLine[] = [];
+
+  /** Total display rows in filtered view */
+  private filteredTotalDisplayRows: number = 0;
+
   /** Checkpoint for incremental updates from LogStore */
   checkpoint: number = 0;
 
@@ -92,6 +127,36 @@ export class LogBuffer {
     }
   }
 
+  /**
+   * Get the current search filter.
+   */
+  get searchFilter(): LogSearchFilter | null {
+    return this._searchFilter;
+  }
+
+  /**
+   * Set a search filter. Pass null to clear the filter.
+   * Triggers recalculation of filtered lines.
+   */
+  set searchFilter(filter: LogSearchFilter | null) {
+    this._searchFilter = filter;
+    this.recalculateFiltering();
+  }
+
+  /**
+   * Check if a search filter is active.
+   */
+  get isFiltering(): boolean {
+    return this._searchFilter !== null;
+  }
+
+  /**
+   * Get the number of matching lines when filtering is active.
+   */
+  get matchCount(): number {
+    return this.filteredIndices?.length ?? 0;
+  }
+
   resize(w: number, h: number): void {
     this.width = w;
     this.height = h;
@@ -113,6 +178,23 @@ export class LogBuffer {
       });
       this.totalDisplayRows += displayRows.length;
       this.lines.push(line);
+
+      // If filtering is active, check if this line matches
+      if (this._searchFilter) {
+        if (
+          line.buildEvent ||
+          this.lineMatchesFilter(line, this._searchFilter)
+        ) {
+          const wrappedIndex = this.wrappedLines.length - 1;
+          this.filteredIndices?.push(wrappedIndex);
+          this.filteredWrappedLines.push({
+            line,
+            displayRows,
+            startRow: this.filteredTotalDisplayRows,
+          });
+          this.filteredTotalDisplayRows += displayRows.length;
+        }
+      }
     }
 
     if (this._autoScroll) {
@@ -130,6 +212,11 @@ export class LogBuffer {
     this.totalDisplayRows = 0;
     this._scrollTop = 0;
     this.checkpoint = 0;
+    // Clear filtered state
+    this._searchFilter = null;
+    this.filteredIndices = null;
+    this.filteredWrappedLines = [];
+    this.filteredTotalDisplayRows = 0;
   }
 
   /**
@@ -163,25 +250,141 @@ export class LogBuffer {
       this._autoScroll = this._scrollTop >= maxScroll;
     }
     // If autoScroll was false (user scrolled up), keep it false
+
+    // Also recalculate filtering if a filter is active
+    if (this._searchFilter) {
+      this.recalculateFiltering();
+    }
+  }
+
+  /**
+   * Recalculate which lines match the current search filter.
+   * Called when filter changes or when lines are appended.
+   */
+  private recalculateFiltering(): void {
+    if (!this._searchFilter) {
+      this.filteredIndices = null;
+      this.filteredWrappedLines = [];
+      this.filteredTotalDisplayRows = 0;
+      return;
+    }
+
+    const filter = this._searchFilter;
+    this.filteredIndices = [];
+    this.filteredWrappedLines = [];
+    this.filteredTotalDisplayRows = 0;
+
+    for (let i = 0; i < this.lines.length; i++) {
+      const line = this.lines[i];
+
+      // Always include separator lines (buildEvent lines)
+      if (line.buildEvent) {
+        this.filteredIndices.push(i);
+        const wrapped = this.wrappedLines[i];
+        this.filteredWrappedLines.push({
+          line: wrapped.line,
+          displayRows: wrapped.displayRows,
+          startRow: this.filteredTotalDisplayRows,
+        });
+        this.filteredTotalDisplayRows += wrapped.displayRows.length;
+        continue;
+      }
+
+      // Check if line matches the filter
+      if (this.lineMatchesFilter(line, filter)) {
+        this.filteredIndices.push(i);
+        const wrapped = this.wrappedLines[i];
+        this.filteredWrappedLines.push({
+          line: wrapped.line,
+          displayRows: wrapped.displayRows,
+          startRow: this.filteredTotalDisplayRows,
+        });
+        this.filteredTotalDisplayRows += wrapped.displayRows.length;
+      }
+    }
+
+    // Reset scroll to top when filter changes (and enable auto-scroll if at bottom)
+    this._scrollTop = 0;
+    this._autoScroll = this.filteredTotalDisplayRows <= this.height;
+  }
+
+  /**
+   * Check if a line matches the current filter.
+   */
+  private lineMatchesFilter(line: LogLine, filter: LogSearchFilter): boolean {
+    if (filter.isRegex && filter.regex) {
+      return filter.regex.test(line.text);
+    }
+    // Case-insensitive string match
+    return line.text.toLowerCase().includes(filter.query.toLowerCase());
+  }
+
+  /**
+   * Find all match ranges in a text string for the current filter.
+   */
+  private findMatchRanges(text: string): MatchRange[] {
+    if (!this._searchFilter) return [];
+
+    const matches: MatchRange[] = [];
+    const filter = this._searchFilter;
+
+    if (filter.isRegex && filter.regex) {
+      // Ensure global flag for findAll
+      const regex = new RegExp(
+        filter.regex.source,
+        filter.regex.flags.includes("g")
+          ? filter.regex.flags
+          : filter.regex.flags + "g",
+      );
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(text)) !== null) {
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+        });
+        // Prevent infinite loop on zero-width matches
+        if (match[0].length === 0) regex.lastIndex++;
+      }
+    } else {
+      // Case-insensitive string search
+      const needle = filter.query.toLowerCase();
+      const haystack = text.toLowerCase();
+      let idx = 0;
+      while ((idx = haystack.indexOf(needle, idx)) !== -1) {
+        matches.push({ start: idx, end: idx + needle.length });
+        idx += needle.length;
+      }
+    }
+
+    return matches;
   }
 
   /**
    * Get rows currently visible in the viewport.
    * Returns an array of VisibleRow objects with text, level, and continuation info.
    * Uses binary search to find the starting line - O(log n + viewport) instead of O(n).
+   * When filtering is active, only shows filtered lines with match highlighting.
    */
   getVisibleRows(): VisibleRow[] {
     const result: VisibleRow[] = [];
 
-    if (this.wrappedLines.length === 0) {
+    // Use filtered wrapped lines if a filter is active
+    const wrappedLines = this._searchFilter
+      ? this.filteredWrappedLines
+      : this.wrappedLines;
+
+    if (wrappedLines.length === 0) {
       return result;
     }
 
     // Binary search to find the first wrapped line that contains visible rows
-    const startIdx = this.findFirstVisibleLineIndex(this._scrollTop);
+    const startIdx = this.findFirstVisibleLineIndexIn(
+      wrappedLines,
+      this._scrollTop,
+    );
 
-    for (let i = startIdx; i < this.wrappedLines.length; i++) {
-      const wrapped = this.wrappedLines[i];
+    for (let i = startIdx; i < wrappedLines.length; i++) {
+      const wrapped = wrappedLines[i];
 
       for (let j = 0; j < wrapped.displayRows.length; j++) {
         const displayRow = wrapped.startRow + j;
@@ -196,11 +399,17 @@ export class LogBuffer {
           return result;
         }
 
+        // Find match ranges for highlighting when filtering
+        const matches = this._searchFilter
+          ? this.findMatchRanges(wrapped.displayRows[j])
+          : undefined;
+
         result.push({
           text: wrapped.displayRows[j],
           level: wrapped.line.level,
           isContinuation: j > 0,
           line: wrapped.line,
+          matches,
         });
       }
 
@@ -218,14 +427,25 @@ export class LogBuffer {
    * rows at or after the given scrollTop position.
    */
   private findFirstVisibleLineIndex(scrollTop: number): number {
-    if (this.wrappedLines.length === 0) return 0;
+    return this.findFirstVisibleLineIndexIn(this.wrappedLines, scrollTop);
+  }
+
+  /**
+   * Binary search to find the index of the first wrapped line in a list that contains
+   * rows at or after the given scrollTop position.
+   */
+  private findFirstVisibleLineIndexIn(
+    wrappedLines: WrappedLine[],
+    scrollTop: number,
+  ): number {
+    if (wrappedLines.length === 0) return 0;
 
     let lo = 0;
-    let hi = this.wrappedLines.length - 1;
+    let hi = wrappedLines.length - 1;
 
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      const wrapped = this.wrappedLines[mid];
+      const wrapped = wrappedLines[mid];
       const endRow = wrapped.startRow + wrapped.displayRows.length;
 
       if (endRow <= scrollTop) {
@@ -243,11 +463,21 @@ export class LogBuffer {
   // --- Scroll API ---
 
   /**
+   * Get the effective total display rows (filtered or all).
+   */
+  private getEffectiveTotalRows(): number {
+    return this._searchFilter
+      ? this.filteredTotalDisplayRows
+      : this.totalDisplayRows;
+  }
+
+  /**
    * Scroll to an absolute position (in display rows).
    * Position is clamped to valid range.
    */
   scrollTo(position: number): void {
-    const maxScroll = Math.max(0, this.totalDisplayRows - this.height);
+    const totalRows = this.getEffectiveTotalRows();
+    const maxScroll = Math.max(0, totalRows - this.height);
     this._scrollTop = Math.max(0, Math.min(position, maxScroll));
     // Auto-scroll is enabled when we're at or near the bottom
     this._autoScroll = this._scrollTop >= maxScroll;
@@ -264,7 +494,7 @@ export class LogBuffer {
    * Scroll to the bottom and enable auto-scroll.
    */
   scrollToBottom(): void {
-    this.scrollTo(this.totalDisplayRows);
+    this.scrollTo(this.getEffectiveTotalRows());
   }
 
   /**
@@ -282,9 +512,9 @@ export class LogBuffer {
     return this._scrollTop;
   }
 
-  /** Total height in display rows (accounts for wrapping) */
+  /** Total height in display rows (accounts for wrapping and filtering) */
   get scrollHeight(): number {
-    return this.totalDisplayRows;
+    return this.getEffectiveTotalRows();
   }
 
   /** Whether auto-scroll is enabled */

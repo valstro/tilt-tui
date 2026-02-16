@@ -41,6 +41,7 @@ function AppContent() {
     setResourcePickerOpen,
     helpOpen,
     setHelpOpen,
+    logSearchOpen,
   } = useFocus();
   const theme = defaultTheme;
 
@@ -73,7 +74,11 @@ function AppContent() {
   useKeyHandler(
     "app",
     executeCommand,
-    () => !paletteOpen() && !resourcePickerOpen() && !helpOpen(),
+    () =>
+      !paletteOpen() &&
+      !resourcePickerOpen() &&
+      !helpOpen() &&
+      !logSearchOpen(),
   );
 
   // Handle palette selection

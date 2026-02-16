@@ -56,13 +56,6 @@ export const keymap: KeyMapping[] = [
   },
   {
     modes: ["app"],
-    key: "tab",
-    modifiers: { shift: true },
-    command: Commands.FOCUS_PREV,
-    description: "switch",
-  },
-  {
-    modes: ["app"],
     key: "?",
     command: Commands.HELP_OPEN,
     description: "help",
@@ -201,5 +194,18 @@ export const keymap: KeyMapping[] = [
     command: Commands.CLEAR_LOGS,
     description: "clear logs",
     showInHelp: true,
+  },
+  {
+    modes: ["resource"],
+    key: "/",
+    command: Commands.LOG_SEARCH_OPEN,
+    description: "search logs",
+    showInHelp: true,
+  },
+  {
+    modes: ["resource"],
+    key: "escape",
+    command: Commands.LOG_SEARCH_CLEAR,
+    description: "clear search",
   },
 ];

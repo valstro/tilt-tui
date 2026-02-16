@@ -381,4 +381,143 @@ describe("LogBuffer", () => {
       );
     });
   });
+
+  describe("searchFilter", () => {
+    test("isFiltering returns false when no filter is set", () => {
+      buffer.appendLines(makeLines(10));
+
+      expect(buffer.isFiltering).toBe(false);
+    });
+
+    test("isFiltering returns true when filter is set", () => {
+      buffer.appendLines(makeLines(10));
+      buffer.searchFilter = { query: "test", isRegex: false, regex: null };
+
+      expect(buffer.isFiltering).toBe(true);
+    });
+
+    test("string filter matches case-insensitively", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines([
+        makeLine("Hello World", "INFO", 0),
+        makeLine("hello world", "INFO", 1),
+        makeLine("HELLO WORLD", "INFO", 2),
+        makeLine("Something else", "INFO", 3),
+      ]);
+
+      buffer.searchFilter = { query: "hello", isRegex: false, regex: null };
+
+      expect(buffer.matchCount).toBe(3);
+      const rows = buffer.getVisibleRows();
+      expect(rows.length).toBe(3);
+    });
+
+    test("regex filter matches correctly", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines([
+        makeLine("Error: something failed", "ERROR", 0),
+        makeLine("Warning: check this", "WARN", 1),
+        makeLine("Info: all good", "INFO", 2),
+        makeLine("Error: another failure", "ERROR", 3),
+      ]);
+
+      buffer.searchFilter = {
+        query: "/Error:/",
+        isRegex: true,
+        regex: new RegExp("Error:", "i"),
+      };
+
+      expect(buffer.matchCount).toBe(2);
+      const rows = buffer.getVisibleRows();
+      expect(rows.length).toBe(2);
+    });
+
+    test("clearing filter restores all lines", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines(makeLines(10));
+
+      buffer.searchFilter = { query: "Line 5", isRegex: false, regex: null };
+      expect(buffer.matchCount).toBe(1);
+
+      buffer.searchFilter = null;
+
+      expect(buffer.isFiltering).toBe(false);
+      const rows = buffer.getVisibleRows();
+      expect(rows.length).toBe(10);
+    });
+
+    test("filter preserves buildEvent separator lines", () => {
+      buffer.showTimestamps = false;
+      const lines = [
+        makeLine("Normal line", "INFO", 0),
+        { ...makeLine("Build separator", "INFO", 1), buildEvent: "start" },
+        makeLine("Build output", "INFO", 2),
+        makeLine("Another normal line", "INFO", 3),
+      ];
+      buffer.appendLines(lines);
+
+      buffer.searchFilter = { query: "separator", isRegex: false, regex: null };
+
+      // Should include the separator line and one match
+      const rows = buffer.getVisibleRows();
+      expect(rows.some((r) => r.line.buildEvent)).toBe(true);
+    });
+
+    test("match ranges are provided for visible rows when filtering", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines([makeLine("Hello World, hello again!", "INFO", 0)]);
+
+      buffer.searchFilter = { query: "hello", isRegex: false, regex: null };
+
+      const rows = buffer.getVisibleRows();
+      expect(rows[0].matches).toBeDefined();
+      expect(rows[0].matches!.length).toBe(2);
+      expect(rows[0].matches![0].start).toBe(0);
+      expect(rows[0].matches![0].end).toBe(5);
+      expect(rows[0].matches![1].start).toBe(13);
+      expect(rows[0].matches![1].end).toBe(18);
+    });
+
+    test("scrollHeight reflects filtered content when filtering", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines(makeLines(100));
+
+      const heightBefore = buffer.scrollHeight;
+
+      buffer.searchFilter = { query: "Line 5", isRegex: false, regex: null };
+
+      // Only lines containing "Line 5" match: Line 5, Line 50-59
+      expect(buffer.scrollHeight).toBeLessThan(heightBefore);
+      expect(buffer.matchCount).toBe(11); // Line 5 and Line 50-59
+    });
+
+    test("new lines are filtered when appended during active filter", () => {
+      buffer.showTimestamps = false;
+      buffer.appendLines([
+        makeLine("Find this line", "INFO", 0),
+        makeLine("Not relevant", "INFO", 1),
+      ]);
+
+      buffer.searchFilter = { query: "Find", isRegex: false, regex: null };
+      expect(buffer.matchCount).toBe(1);
+
+      // Append new lines while filter is active
+      buffer.appendLines([
+        makeLine("Another Find here", "INFO", 2),
+        makeLine("Still not relevant", "INFO", 3),
+      ]);
+
+      expect(buffer.matchCount).toBe(2);
+    });
+
+    test("clear resets filter state", () => {
+      buffer.appendLines(makeLines(10));
+      buffer.searchFilter = { query: "test", isRegex: false, regex: null };
+
+      buffer.clear();
+
+      expect(buffer.isFiltering).toBe(false);
+      expect(buffer.matchCount).toBe(0);
+    });
+  });
 });
