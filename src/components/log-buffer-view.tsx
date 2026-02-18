@@ -202,7 +202,7 @@ export function LogBufferView(
   const reflowLogs = () => {
     const el = containerEl;
     if (el) {
-      const w = el.width;
+      const w = el.width - 2; //padding
       const h = el.height;
       const current = dimensions();
 
@@ -509,7 +509,7 @@ export function LogBufferView(
     const tryInitialize = (el: BoxRenderable) => {
       if (initialized) return;
 
-      const w = el.width;
+      const w = el.width - 2; // padding
       const h = el.height;
 
       // Only proceed if we have real computed dimensions
