@@ -41,6 +41,7 @@ This project uses bun as its runtime, not nodejs or browser.
 
 This app is a TUI, and as such won't be able to show output on stdout.
 
+- use `bun dev` to start the app
 - use `tmux capture-pane` to run tui tests.
 - use a unique tmux session name to prevent conflicts with user-sessions.
 - in order to see console output, you'll need to run the app with `SHOW_CONSOLE=true` env var.

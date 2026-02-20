@@ -5,11 +5,13 @@
   - up should circle around to bottom of tree when already at top, and same for down.
 - screen resizing
   - command help should adjust to screen width. show fewer commands when screen is below a threshold
+  - terminal resize doesn't trigger logview resize
 - logs
   - log clearing doens't work
   - should show span separators between span segments. e.g. "initial build", "web trigger", "live reload", etc.
 - resource picker search doens't prioritize exact match.
 - status indicator rendering issues, mostly with warning indicator.
+- reload-resource command from the command palette doesn't work, but `r` does.
 
 # ROADMAP
 
