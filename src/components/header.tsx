@@ -84,14 +84,14 @@ interface StatusCountsProps {
 
 // Moved outside Header to avoid recreation on every render
 function StatusCounts(props: StatusCountsProps) {
-  const separator = () => (props.narrow ? " " : "  ");
+  const separator = props.narrow ? " " : "  ";
   return (
     <box flexDirection="row" flexShrink={0}>
       <For each={props.items}>
         {(item, index) => (
           <>
             <Show when={index() > 0}>
-              <text fg={props.theme.textMuted}>{separator()}</text>
+              <text fg={props.theme.textMuted}>{separator}</text>
             </Show>
             <text fg={item.color}>{item.icon}</text>
             <text fg={props.theme.text}> {item.text}</text>
@@ -138,7 +138,7 @@ export function Header(props: HeaderProps) {
       items.push({ icon: "✗", text: `${c.unhealthy}`, color: theme.error });
     }
     if (c.warning > 0) {
-      items.push({ icon: "⚠", text: `${c.warning}`, color: theme.warning });
+      items.push({ icon: "!", text: `${c.warning}`, color: theme.warning });
     }
     if (c.pending > 0) {
       items.push({ icon: "●", text: `${c.pending}`, color: theme.textMuted });
