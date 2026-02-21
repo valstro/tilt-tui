@@ -17,7 +17,13 @@ import {
 } from "./log-search-modal";
 
 export function ResourceView() {
-  const { state, logStore, triggerResource, toggleResourceDisable } = useTilt();
+  const {
+    state,
+    logStore,
+    triggerResource,
+    toggleResourceDisable,
+    activeLogFilterNames,
+  } = useTilt();
   const { state: focusState, logSearchOpen, setLogSearchOpen } = useFocus();
   const theme = defaultTheme;
 
@@ -156,6 +162,12 @@ export function ResourceView() {
     >
       {/* Sticky header */}
       <PaneHeader title={`Logs: ${state.selectedResource ?? ""}`}>
+        <Show when={activeLogFilterNames().length > 0}>
+          <text fg={theme.accent} flexShrink={0}>
+            {" "}
+            [logFilters: {activeLogFilterNames().join(", ")}]
+          </text>
+        </Show>
         <Show when={isFiltering()}>
           <text fg={theme.primary} flexShrink={0}>
             {" "}

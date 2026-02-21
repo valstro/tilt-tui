@@ -4,6 +4,7 @@ import {
   onMount,
   onCleanup,
   type ParentProps,
+  createSignal,
 } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import {
@@ -27,6 +28,7 @@ import {
 } from "../tilt/types";
 import LogStore from "../tilt/logstore2";
 import type { ConnectionStatus } from "../theme/theme";
+import { loadUserSettings } from "../config/user-settings";
 
 export type StatusFilter =
   | "all"
@@ -57,6 +59,8 @@ interface TiltContextValue {
   toggleResourceDisable: (name: string) => Promise<void>;
   cycleStatusFilter: () => void;
   resetStatusFilter: () => void;
+  /** Names of active log filters from user config */
+  activeLogFilterNames: () => string[];
 }
 
 const TiltContext = createContext<TiltContextValue>();
@@ -67,6 +71,11 @@ export function TiltProvider(
   const client = new TiltClient({ host: props.host, port: props.port });
 
   const logStore = new LogStore();
+
+  // Track active log filter names for display
+  const [activeLogFilterNames, setActiveLogFilterNames] = createSignal<
+    string[]
+  >([]);
 
   const [state, setState] = createStore<TiltState>({
     connectionStatus: "connecting",
@@ -293,7 +302,21 @@ export function TiltProvider(
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    // Load user settings and configure log filters
+    try {
+      const settings = await loadUserSettings();
+      if (settings.logFilters.length > 0) {
+        logStore.setLogFilters(settings.logFilters);
+        setActiveLogFilterNames(settings.activeFilterNames);
+        console.log(
+          `Loaded ${settings.logFilters.length} log filters from config`,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load user settings:", error);
+    }
+
     // Start the main Effection operation using run()
     // run() embeds Effection into existing async code
     mainTask = run(mainOperation);
@@ -316,6 +339,7 @@ export function TiltProvider(
     toggleResourceDisable,
     cycleStatusFilter,
     resetStatusFilter,
+    activeLogFilterNames,
   };
 
   return (

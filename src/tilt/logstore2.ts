@@ -5,6 +5,10 @@
 import { APILogList, APISpan } from "./api-types";
 import { isBuildSpanId } from "./log-utils";
 import { APILogSegment, LogLevel, LogLine, LogPatchSet } from "./types";
+import {
+  type CompiledLogFilters,
+  shouldFilterLogLine,
+} from "../config/user-settings";
 
 // Firestore doesn't properly handle maps with keys equal to the empty string, so
 // we normalize all empty span ids to '_' client-side.
@@ -98,6 +102,9 @@ class LogStore implements LogAlertIndex {
   logLength: number = 0;
   maxLogLength: number;
 
+  // User-configured log filters
+  private logFilters: CompiledLogFilters[] = [];
+
   constructor() {
     this.spans = {};
     this.segments = [];
@@ -107,6 +114,22 @@ class LogStore implements LogAlertIndex {
     this.lineCache = {};
     this.updateCallbacks = [];
     this.maxLogLength = defaultMaxLogLength;
+  }
+
+  /**
+   * Set the log filters to use for filtering incoming log segments.
+   * Filters are applied to new segments only - existing segments are not re-filtered.
+   */
+  setLogFilters(filters: CompiledLogFilters[]): void {
+    this.logFilters = filters;
+    console.log(`LogStore: configured ${filters.length} log filters`);
+  }
+
+  /**
+   * Get the currently configured log filters.
+   */
+  getLogFilters(): CompiledLogFilters[] {
+    return this.logFilters;
   }
 
   addUpdateListener(c: callback) {
@@ -225,6 +248,18 @@ class LogStore implements LogAlertIndex {
   private addSegment(newSegment: APILogSegment) {
     // workaround firestore bug. see comments on defaultSpanId.
     newSegment.spanId = newSegment.spanId || defaultSpanId;
+
+    // Apply user-configured log filters - skip segments that match any filter
+    if (
+      this.logFilters.length > 0 &&
+      newSegment.text &&
+      shouldFilterLogLine(newSegment.text, this.logFilters)
+    ) {
+      // Segment filtered out - still need to track it for checkpoint continuity
+      this.segmentToLine.push(-1);
+      return;
+    }
+
     this.segments.push(newSegment);
     this.logLength += newSegment.text?.length || 0;
 
