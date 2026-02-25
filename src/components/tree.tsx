@@ -96,7 +96,13 @@ function buildTreeNodes(
   // Build nodes
   for (const groupKey of groupOrder) {
     const indices = grouped.get(groupKey)!;
-    const expanded = expandedGroups[groupKey] ?? true;
+    
+    // Check if any resources in this group are enabled
+    const hasEnabledResources = indices.some((idx) => !resources[idx].isDisabled);
+    
+    // Default to collapsed if no enabled resources, expanded otherwise
+    const defaultExpanded = hasEnabledResources;
+    const expanded = expandedGroups[groupKey] ?? defaultExpanded;
 
     nodes.push({
       type: "group",
