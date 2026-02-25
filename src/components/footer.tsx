@@ -2,16 +2,41 @@
 // Dynamically generates help text from keymap
 
 import { createMemo, For } from "solid-js";
+import { useTerminalDimensions } from "@opentui/solid";
 import { useFocus } from "../context/focus";
 import { defaultTheme } from "../theme/theme";
 import { getHelpItemsForMode } from "../keyboard/keymap-utils";
 
 export function Footer() {
-  const { state } = useFocus();
+  const { state, sidebarVisible } = useFocus();
   const theme = defaultTheme;
+  const dimensions = useTerminalDimensions();
+
+  // Calculate approximate ResourceView width
+  // Tree sidebar width: 42 + 2 (margins) = 44
+  const resourceViewWidth = createMemo(() => {
+    const terminalWidth = dimensions().width;
+    if (sidebarVisible()) {
+      return terminalWidth - 44; // Subtract sidebar width
+    }
+    return terminalWidth;
+  });
 
   // Get help items dynamically from keymap
-  const helpItems = createMemo(() => getHelpItemsForMode(state.activePane));
+  const allHelpItems = createMemo(() => getHelpItemsForMode(state.activePane));
+
+  // Filter help items based on available width
+  const helpItems = createMemo(() => {
+    const items = allHelpItems();
+    const width = resourceViewWidth();
+    
+    // When ResourceView is narrow (< 80 chars), show only the help shortcut
+    if (width < 80) {
+      return items.filter((item) => item.description === "help");
+    }
+    
+    return items;
+  });
 
   return (
     <box

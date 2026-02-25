@@ -52,7 +52,6 @@ export const keymap: KeyMapping[] = [
     key: "tab",
     command: Commands.FOCUS_NEXT,
     description: "switch",
-    showInHelp: true,
   },
   {
     modes: ["app"],
@@ -126,7 +125,6 @@ export const keymap: KeyMapping[] = [
     key: "r",
     command: Commands.RELOAD_RESOURCE,
     description: "reload resource",
-    showInHelp: true,
   },
   {
     modes: ["tree", "resource"],
@@ -193,7 +191,6 @@ export const keymap: KeyMapping[] = [
     },
     command: Commands.CLEAR_LOGS,
     description: "clear logs",
-    showInHelp: true,
   },
   {
     modes: ["resource"],

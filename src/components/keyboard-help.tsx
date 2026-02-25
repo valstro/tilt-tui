@@ -47,11 +47,27 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
     });
   });
 
-  // Keyboard handling - just escape to close
+  // Keyboard handling - escape to close, j/k for scrolling
   useKeyboard((evt) => {
     if (evt.name === "escape" || evt.name === "?" || evt.name === "q") {
       evt.preventDefault();
       props.onClose();
+      return;
+    }
+
+    // Scroll with j/k or arrow keys
+    if (evt.name === "j" || evt.name === "down") {
+      evt.preventDefault();
+      scrollRef?.scrollBy(1);
+    } else if (evt.name === "k" || evt.name === "up") {
+      evt.preventDefault();
+      scrollRef?.scrollBy(-1);
+    } else if (evt.name === "g" && !evt.shift) {
+      evt.preventDefault();
+      scrollRef?.scrollTo(0);
+    } else if (evt.name === "g" && evt.shift) {
+      evt.preventDefault();
+      scrollRef?.scrollTo(9999); // Scroll to bottom
     }
   });
 
@@ -79,7 +95,7 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
           Keyboard Shortcuts
         </text>
-        <text fg={theme.textMuted}>esc/q/?</text>
+        <text fg={theme.textMuted}>j/k scroll · esc/q/?</text>
       </box>
 
       {/* Shortcuts list */}
