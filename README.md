@@ -42,3 +42,35 @@ Inspect in browser:
 ## Using
 
 `?` will show you list of context-aware keyboard shortcuts.
+
+## Configuration
+
+Tilt TUI loads user settings from `~/.config/tilt-tui/config.json`.
+
+### Log Filters
+
+Filter out noisy log lines using regex patterns. Create named filters to hide logs matching specific patterns.
+
+Example `~/.config/tilt-tui/config.json`:
+
+```json
+{
+  "logFilters": {
+    "health-checks": [
+      "GET /health",
+      "GET /readiness"
+    ],
+    "debug-logs": [
+      "^DEBUG:",
+      "\\[debug\\]"
+    ]
+  }
+}
+```
+
+Each filter:
+- Has a **name** (displayed in the UI when active)
+- Contains an array of **regex patterns** (JavaScript regex syntax)
+- Filters are applied automatically when the config file is present
+
+Active filters are shown in the log view header: `[logFilters: health-checks, debug-logs]`
