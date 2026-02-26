@@ -1,0 +1,316 @@
+
+# version_settings() enforces a minimum Tilt version
+# https://docs.tilt.dev/api.html#api.version_settings
+version_settings(constraint='>=0.22.2')
+
+allow_k8s_contexts([
+  "dev"
+])
+
+analytics_settings(enable=False)
+
+os.putenv('NAMESPACE', 'local-ac-tilt-demo')
+
+config.define_string("environment")
+config.define_bool("reset-nx-cache")
+cfg = config.parse()
+
+load('ext://namespace', 'namespace_create')
+namespace_create(
+    os.getenv('NAMESPACE'),
+)
+
+load('ext://uibutton', 'cmd_button')
+
+warn("generate a warning")
+
+# tilt-avatar-api is the backend (Python/Flask app)
+# live_update syncs changed source code files to the correct place for the Flask dev server
+# and runs pip (python package manager) to update dependencies when changed
+# https://docs.tilt.dev/api.html#api.docker_build
+# https://docs.tilt.dev/live_update_reference.html
+docker_build(
+    'tilt-avatar-api',
+    context='.',
+    dockerfile='./deploy/api.dockerfile',
+    only=['./api/'],
+    live_update=[
+        sync('./api/', '/app/api/'),
+        run(
+            'pip install -r /app/requirements.txt',
+            trigger=['./api/requirements.txt']
+        )
+    ]
+)
+
+# k8s_yaml automatically creates resources in Tilt for the entities
+# and will inject any images referenced in the Tiltfile when deploying
+# https://docs.tilt.dev/api.html#api.k8s_yaml
+k8s_yaml('deploy/api.yaml')
+
+# k8s_resource allows customization where necessary such as adding port forwards and labels
+# https://docs.tilt.dev/api.html#api.k8s_resource
+k8s_resource(
+    'api',
+    port_forwards='5734:5000',
+    labels=['backend'],
+    links=[
+      link('https://google.com', 'goog search'),
+      link('https://bing.com', 'bing search'),
+    ]
+)
+
+cmd_button('echo foo',
+    argv=['sh', '-c', 'echo hi mom'],
+    resource='api',
+    icon_name='cloud_download',
+    text='echo some stuff',
+)
+
+
+# tilt-avatar-web is the frontend (ReactJS/vite app)
+# live_update syncs changed source files to the correct place for vite to pick up
+# and runs yarn (JS dependency manager) to update dependencies when changed
+# if vite.config.js changes, a full rebuild is performed because it cannot be
+# changed dynamically at runtime
+# https://docs.tilt.dev/api.html#api.docker_build
+# https://docs.tilt.dev/live_update_reference.html
+docker_build(
+    'tilt-avatar-web',
+    context='.',
+    dockerfile='./deploy/web.dockerfile',
+    only=['./web/'],
+    ignore=['./web/dist/'],
+    live_update=[
+        fall_back_on('./web/vite.config.js'),
+        sync('./web/', '/app/'),
+        run(
+            'yarn install',
+            trigger=['./web/package.json', './web/yarn.lock']
+        )
+    ]
+)
+
+# k8s_yaml automatically creates resources in Tilt for the entities
+# and will inject any images referenced in the Tiltfile when deploying
+# https://docs.tilt.dev/api.html#api.k8s_yaml
+k8s_yaml('deploy/web.yaml')
+
+# k8s_resource allows customization where necessary such as adding port forwards and labels
+# https://docs.tilt.dev/api.html#api.k8s_resource
+k8s_resource(
+    'web',
+    port_forwards='5735:5173', # 5173 is the port Vite listens on in the container
+    labels=['frontend'],
+    links=[
+      link('https://google.com', 'goog search'),
+      link('https://bing.com', 'bing search'),
+    ]
+)
+
+cmd_button('echo bar',
+    argv=['sh', '-c', 'echo hi brotherman'],
+    resource='web',
+    icon_name='cloud_download',
+    text='echo some other stuff',
+)
+
+# config.main_path is the absolute path to the Tiltfile being run
+# there are many Tilt-specific built-ins for manipulating paths, environment variables, parsing JSON/YAML, and more!
+# https://docs.tilt.dev/api.html#api.config.main_path
+tiltfile_path = config.main_path
+
+# print writes messages to the (Tiltfile) log in the Tilt UI
+# the Tiltfile language is Starlark, a simplified Python dialect, which includes many useful built-ins
+# config.tilt_subcommand makes it possible to only run logic during `tilt up` or `tilt down`
+# https://github.com/bazelbuild/starlark/blob/master/spec.md#print
+# https://docs.tilt.dev/api.html#api.config.tilt_subcommand
+if config.tilt_subcommand == 'up':
+    print("""
+    \033[32m\033[32mHello World from tilt-avatars!\033[0m
+
+    If this is your first time using Tilt and you'd like some guidance, we've got a tutorial to accompany this project:
+    https://docs.tilt.dev/tutorial
+
+    If you're feeling particularly adventurous, try opening `{tiltfile}` in an editor and making some changes while Tilt is running.
+    What happens if you intentionally introduce a syntax error? Can you fix it?
+    """.format(tiltfile=tiltfile_path))
+
+
+# =============================================================================
+# Stress Test Resources for Log Rendering Performance Testing
+# =============================================================================
+
+# High-volume log generator - produces 10k lines rapidly
+local_resource(
+    'log-stress-10k',
+    cmd='for i in $(seq 1 10000); do echo "[$i] Log line with some content to test rendering performance"; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# Continuous log stream - produces logs at ~100/sec for 60 seconds
+local_resource(
+    'log-stream-continuous',
+    cmd='for i in $(seq 1 6000); do echo "[$(date +%H:%M:%S)] Streaming log $i with variable content"; sleep 0.01; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# Long line generator - tests word wrapping
+local_resource(
+    'log-long-lines',
+    cmd='for i in $(seq 1 1000); do echo "This is a very long log line number $i that should trigger word wrapping because it exceeds the typical terminal width of 80 characters and needs to be handled gracefully by the rendering system with proper continuation indicators"; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# ANSI color test - tests color preservation
+local_resource(
+    'log-ansi-colors',
+    cmd='for i in $(seq 1 100); do echo -e "\\033[31mRed\\033[0m \\033[32mGreen\\033[0m \\033[33mYellow\\033[0m \\033[34mBlue\\033[0m \\033[1;35mBold Magenta\\033[0m line $i"; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# Mixed levels - tests WARN/ERROR coloring
+local_resource(
+    'log-mixed-levels',
+    cmd='for i in $(seq 1 1000); do case $((i % 10)) in 0) echo "[ERROR] Error on line $i";; 3|7) echo "[WARN] Warning on line $i";; *) echo "[INFO] Info on line $i";; esac; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# Rapid burst - tests handling of very fast appends
+local_resource(
+    'log-rapid-burst',
+    cmd='for i in $(seq 1 5000); do echo "Burst line $i"; done; sleep 1; for i in $(seq 5001 10000); do echo "Burst line $i"; done',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# =============================================================================
+# Carriage Return Progress Logs (Bug Repro)
+# =============================================================================
+
+# Simulates Maven/Gradle-style progress output with carriage returns
+local_resource(
+    'log-progress-cr',
+    cmd='''printf 'Progress (3): 429/619 kB | 40 kB | 8.7 kB\rProgress (3): 433/619 kB | 40 kB | 8.7 kB\rProgress (3): 437/619 kB | 40 kB | 8.7 kB\rProgress (3): 441/619 kB | 40 kB | 8.7 kB\rProgress (3): 446/619 kB | 40 kB | 8.7 kB\rProgress (3): 450/619 kB | 40 kB | 8.7 kB\r'
+echo "Download complete"''',
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['stress-test']
+)
+
+# =============================================================================
+# Cmd Button Stress Tests
+# =============================================================================
+
+# Create a dedicated resource for cmd_button stress testing
+local_resource(
+    'cmd-button-stress',
+    cmd='echo "Ready for stress testing via cmd_button"',
+    auto_init=True,
+    labels=['stress-test']
+)
+
+# Massive output button - generates 50k lines
+cmd_button('massive-output',
+    argv=['sh', '-c', 'for i in $(seq 1 50000); do echo "[$i] Testing log buffer with large output stream - this is line number $i with some additional content"; done'],
+    resource='cmd-button-stress',
+    icon_name='warning',
+    text='Generate 50k Lines',
+)
+
+# Fast streaming button - 10k lines with no delay
+cmd_button('fast-stream',
+    argv=['sh', '-c', 'for i in $(seq 1 10000); do echo "[FAST-$i] Rapid fire log line with timestamp $(date +%H:%M:%S.%N)"; done'],
+    resource='cmd-button-stress',
+    icon_name='speed',
+    text='Fast Stream 10k',
+)
+
+# Long lines button - tests word wrapping under high volume
+cmd_button('long-lines-stress',
+    argv=['sh', '-c', 'for i in $(seq 1 5000); do echo "[$i] This is an extremely long log line that should test the word wrapping capabilities of the log buffer system when combined with high volume output and this message just keeps going and going with lots of text to ensure it exceeds typical terminal widths by a significant margin"; done'],
+    resource='cmd-button-stress',
+    icon_name='wrap_text',
+    text='Long Lines 5k',
+)
+
+# Mixed content button - variety of log types
+cmd_button('mixed-content-stress',
+    argv=['sh', '-c', '''
+for i in $(seq 1 20000); do
+  case $((i % 10)) in
+    0) echo -e "\\033[31m[ERROR $i]\\033[0m Critical error message with details";;
+    3) echo -e "\\033[33m[WARN $i]\\033[0m Warning message with context";;
+    5) echo "[DEBUG $i] Debug trace with very long variable dump: {foo: 'bar', baz: [1,2,3], nested: {deep: 'value'}}";;
+    *) echo "[INFO $i] Normal log message";;
+  esac
+done
+    '''],
+    resource='cmd-button-stress',
+    icon_name='layers',
+    text='Mixed 20k Lines',
+)
+
+# Continuous stream button - slow but steady
+cmd_button('continuous-stream',
+    argv=['sh', '-c', 'for i in $(seq 1 1000); do echo "[STREAM-$i] Continuous output at $(date +%H:%M:%S)"; sleep 0.05; done'],
+    resource='cmd-button-stress',
+    icon_name='stream',
+    text='1k Lines + Delays',
+)
+
+# =============================================================================
+# Original Echo Resources
+# =============================================================================
+
+local_resource('echo 1', cmd='echo foo', auto_init=False, trigger_mode=TRIGGER_MODE_MANUAL)
+local_resource('echo 2', cmd='echo foo')
+local_resource('echo 3', cmd='echo foo')
+local_resource('echo 4', cmd='echo foo')
+local_resource('echo 5', cmd='while :; do sleep 2073600; done')
+local_resource('echo 6', cmd='echo foo')
+local_resource('echo 7', cmd='echo foo')
+local_resource('echo 8', cmd='echo foo')
+local_resource('echo 9', cmd='echo foo')
+local_resource('echo 10', cmd='echo foo')
+local_resource('echo 11', cmd='echo foo')
+local_resource('echo 12', cmd='echo foo')
+local_resource('echo 13', cmd='echo foo')
+local_resource('echo 14', cmd='echo foo')
+local_resource('echo 15', cmd='echo foo')
+local_resource('echo 16', cmd='echo foo')
+local_resource('echo 17', cmd='echo foo')
+local_resource('echo 18', cmd='echo foo')
+local_resource('echo 19', cmd='echo foo')
+local_resource('echo 20', cmd='echo foo')
+local_resource('echo 21', cmd='echo foo')
+local_resource('echo 22', cmd='echo foo')
+local_resource('echo 23', cmd='echo foo')
+local_resource('echo 24', cmd='echo foo')
+local_resource('echo 25', cmd='echo foo')
+local_resource('echo 26', cmd='echo foo')
+local_resource('echo 27', cmd='echo foo')
+local_resource('echo 28', cmd='echo foo')
+local_resource('echo 29', cmd='echo foo')
+local_resource('echo 30', cmd='echo foo', labels=['disableds'])
+local_resource('echo 31', cmd='echo foo', labels=['disableds'])
+local_resource('echo 32', cmd='echo foo', labels=['disableds'])
+local_resource('echo 33', cmd='echo foo', labels=['disableds'])
+local_resource('echo 34', cmd='echo foo', labels=['disableds'])
+local_resource('echo 35', cmd='echo foo', labels=['disableds'])
+local_resource('echo 36', cmd='echo foo', labels=['disableds'])
+local_resource('echo 37', cmd='echo foo', labels=['disableds'])
+local_resource('echo 38', cmd='echo foo', labels=['disableds'])
+local_resource('echo 39', cmd='echo foo', labels=['disableds'])
+local_resource('echo 40', cmd='echo foo', labels=['disableds'])
