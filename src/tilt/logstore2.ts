@@ -153,6 +153,11 @@ class LogStore implements LogAlertIndex {
     let size = 0;
     const segments = [] as APILogSegment[];
     for (let i = this.segments.length - 1; i >= 0; i--) {
+      // Skip filtered segments (those with -1 in segmentToLine)
+      if (this.segmentToLine[i] === -1) {
+        continue;
+      }
+
       let segment = this.segments[i];
       size += segment.text?.length || 0;
       if (maxSize && size > maxSize) {
@@ -249,18 +254,21 @@ class LogStore implements LogAlertIndex {
     // workaround firestore bug. see comments on defaultSpanId.
     newSegment.spanId = newSegment.spanId || defaultSpanId;
 
-    // Apply user-configured log filters - skip segments that match any filter
-    if (
+    // Check if segment should be filtered
+    const isFiltered =
       this.logFilters.length > 0 &&
       newSegment.text &&
-      shouldFilterLogLine(newSegment.text, this.logFilters)
-    ) {
-      // Segment filtered out - still need to track it for checkpoint continuity
+      shouldFilterLogLine(newSegment.text, this.logFilters);
+
+    // Always add segment to maintain checkpoint and index alignment
+    this.segments.push(newSegment);
+
+    if (isFiltered) {
+      // Segment filtered out - track with -1 so it won't be rendered
       this.segmentToLine.push(-1);
       return;
     }
 
-    this.segments.push(newSegment);
     this.logLength += newSegment.text?.length || 0;
 
     let candidate = new StoredLine(newSegment);
@@ -603,13 +611,19 @@ class LogStore implements LogAlertIndex {
     if (incremental) {
       let earliestStartIndex = -1;
       for (let i = checkpoint; i < this.segments.length; i++) {
+        let lineIndex = this.segmentToLine[i];
+
+        // Skip filtered segments (those with -1 in segmentToLine)
+        if (lineIndex === -1) {
+          continue;
+        }
+
         let segment = this.segments[i];
         let span = spansToLog[segment.spanId || defaultSpanId];
         if (!span) {
           continue;
         }
 
-        let lineIndex = this.segmentToLine[i];
         if (earliestStartIndex === -1 || lineIndex < earliestStartIndex) {
           earliestStartIndex = lineIndex;
         }

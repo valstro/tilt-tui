@@ -702,6 +702,307 @@ describe("LogStore", () => {
     });
   });
 
+  describe("log filtering", () => {
+    test("filters out segments matching log filter patterns", () => {
+      const filters = [
+        {
+          name: "test-filter",
+          patterns: [/DEBUG/, /VERBOSE/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      const logList = createLogList(
+        [
+          createSegment("DEBUG: verbose output\n", "span:1"),
+          createSegment("INFO: keep this\n", "span:1"),
+          createSegment("VERBOSE trace\n", "span:1"),
+        ],
+        { "span:1": { manifestName: "resource-a" } },
+      );
+
+      logStore.append(logList);
+      const lines = logStore.allLog();
+
+      expect(lines.length).toBe(1);
+      expect(lines[0].text).toBe("INFO: keep this");
+    });
+
+    test("streaming multiple segments with active filters maintains checkpoint continuity", () => {
+      const filters = [
+        {
+          name: "verbose-filter",
+          patterns: [/\[VERBOSE\]/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      // First batch: 10 segments, 8 filtered out, 2 kept
+      const batch1Segments = [];
+      for (let i = 1; i <= 10; i++) {
+        if (i % 5 === 0) {
+          batch1Segments.push(createSegment(`[INFO] Line ${i}\n`, "span:1"));
+        } else {
+          batch1Segments.push(
+            createSegment(`[VERBOSE] Debug ${i}\n`, "span:1"),
+          );
+        }
+      }
+      const logList1 = createLogList(
+        batch1Segments,
+        { "span:1": { manifestName: "resource-a" } },
+        0,
+        10,
+      );
+      logStore.append(logList1);
+
+      // Get initial state
+      const patchSet1 = logStore.allLogPatchSet(0);
+      expect(patchSet1.lines.length).toBe(2);
+      expect(patchSet1.checkpoint).toBe(10);
+
+      // Second batch: another 10 segments, 8 filtered, 2 kept
+      const batch2Segments = [];
+      for (let i = 11; i <= 20; i++) {
+        if (i % 5 === 0) {
+          batch2Segments.push(createSegment(`[INFO] Line ${i}\n`, "span:1"));
+        } else {
+          batch2Segments.push(
+            createSegment(`[VERBOSE] Debug ${i}\n`, "span:1"),
+          );
+        }
+      }
+      const logList2 = createLogList(
+        batch2Segments,
+        { "span:1": { manifestName: "resource-a" } },
+        10,
+        20,
+      );
+      logStore.append(logList2);
+
+      // Get incremental update
+      const patchSet2 = logStore.allLogPatchSet(patchSet1.checkpoint);
+      expect(patchSet2.lines.length).toBe(2);
+      expect(patchSet2.checkpoint).toBe(20);
+      expect(patchSet2.lines[0].text).toBe("[INFO] Line 15");
+      expect(patchSet2.lines[1].text).toBe("[INFO] Line 20");
+    });
+
+    test("streaming with heavy filtering (99% filtered) still delivers all non-filtered lines", () => {
+      const filters = [
+        {
+          name: "noise-filter",
+          patterns: [/NOISE/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      // Simulate high-volume output with mostly noise
+      const batch1Segments = [];
+      for (let i = 1; i <= 100; i++) {
+        if (i % 20 === 0) {
+          batch1Segments.push(
+            createSegment(`[IMPORTANT] Message ${i}\n`, "span:1"),
+          );
+        } else {
+          batch1Segments.push(createSegment(`NOISE ${i}\n`, "span:1"));
+        }
+      }
+      const logList1 = createLogList(
+        batch1Segments,
+        { "span:1": { manifestName: "resource-a" } },
+        0,
+        100,
+      );
+      logStore.append(logList1);
+
+      const patchSet1 = logStore.allLogPatchSet(0);
+      expect(patchSet1.lines.length).toBe(5); // Lines 20, 40, 60, 80, 100
+      expect(patchSet1.checkpoint).toBe(100);
+
+      // Second batch
+      const batch2Segments = [];
+      for (let i = 101; i <= 200; i++) {
+        if (i % 20 === 0) {
+          batch2Segments.push(
+            createSegment(`[IMPORTANT] Message ${i}\n`, "span:1"),
+          );
+        } else {
+          batch2Segments.push(createSegment(`NOISE ${i}\n`, "span:1"));
+        }
+      }
+      const logList2 = createLogList(
+        batch2Segments,
+        { "span:1": { manifestName: "resource-a" } },
+        100,
+        200,
+      );
+      logStore.append(logList2);
+
+      const patchSet2 = logStore.allLogPatchSet(patchSet1.checkpoint);
+      expect(patchSet2.lines.length).toBe(5); // Lines 120, 140, 160, 180, 200
+      expect(patchSet2.checkpoint).toBe(200);
+
+      // Verify all lines are present
+      const allLines = logStore.allLog();
+      expect(allLines.length).toBe(10);
+      expect(allLines[0].text).toBe("[IMPORTANT] Message 20");
+      expect(allLines[9].text).toBe("[IMPORTANT] Message 200");
+    });
+
+    test("filters work correctly with multi-span streaming", () => {
+      const filters = [
+        {
+          name: "span-a-filter",
+          patterns: [/\[span-a-noise\]/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      const logList = createLogList(
+        [
+          createSegment("[span-a-noise] verbose\n", "span:a"),
+          createSegment("[span-a] important\n", "span:a"),
+          createSegment("[span-b] message\n", "span:b"),
+          createSegment("[span-a-noise] more verbose\n", "span:a"),
+          createSegment("[span-a] another important\n", "span:a"),
+        ],
+        {
+          "span:a": { manifestName: "resource-a" },
+          "span:b": { manifestName: "resource-b" },
+        },
+      );
+
+      logStore.append(logList);
+
+      const allLines = logStore.allLog();
+      expect(allLines.length).toBe(3);
+      expect(allLines[0].text).toBe("[span-a] important");
+      expect(allLines[1].text).toBe("[span-b] message");
+      expect(allLines[2].text).toBe("[span-a] another important");
+    });
+
+    test("incremental updates with filters handle line continuation correctly", () => {
+      const filters = [
+        {
+          name: "filter",
+          patterns: [/SKIP/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      // First batch - incomplete line that should not be filtered
+      const logList1 = createLogList(
+        [
+          createSegment("Part 1 ", "span:1", "INFO"),
+          createSegment("SKIP this line\n", "span:2", "INFO"),
+        ],
+        {
+          "span:1": { manifestName: "resource-a" },
+          "span:2": { manifestName: "resource-b" },
+        },
+        0,
+        2,
+      );
+      logStore.append(logList1);
+
+      const patchSet1 = logStore.allLogPatchSet(0);
+      expect(patchSet1.lines.length).toBe(1);
+      expect(patchSet1.lines[0].text).toBe("Part 1 ");
+
+      // Second batch - complete the first line
+      const logList2 = createLogList(
+        [createSegment("Part 2\n", "span:1", "INFO")],
+        { "span:1": { manifestName: "resource-a" } },
+        2,
+        3,
+      );
+      logStore.append(logList2);
+
+      const patchSet2 = logStore.allLogPatchSet(patchSet1.checkpoint);
+      expect(patchSet2.lines.length).toBe(1);
+      expect(patchSet2.lines[0].text).toBe("Part 1 Part 2");
+    });
+
+    test("manifest log with filters returns only non-filtered lines", () => {
+      const filters = [
+        {
+          name: "filter",
+          patterns: [/FILTERED/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      const logList = createLogList(
+        [
+          createSegment("FILTERED line 1\n", "span:a"),
+          createSegment("KEEP line 2\n", "span:a"),
+          createSegment("FILTERED line 3\n", "span:b"),
+          createSegment("KEEP line 4\n", "span:b"),
+        ],
+        {
+          "span:a": { manifestName: "resource-a" },
+          "span:b": { manifestName: "resource-b" },
+        },
+      );
+
+      logStore.append(logList);
+
+      const aLogs = logStore.manifestLog("resource-a");
+      const bLogs = logStore.manifestLog("resource-b");
+
+      expect(aLogs.length).toBe(1);
+      expect(aLogs[0].text).toBe("KEEP line 2");
+      expect(bLogs.length).toBe(1);
+      expect(bLogs[0].text).toBe("KEEP line 4");
+    });
+
+    test("checkpoint tracking remains consistent with filtered segments", () => {
+      const filters = [
+        {
+          name: "filter",
+          patterns: [/NOISE/],
+        },
+      ];
+      logStore.setLogFilters(filters);
+
+      // First append with mixed content
+      const logList1 = createLogList(
+        [
+          createSegment("SIGNAL 1\n", "span:1"),
+          createSegment("NOISE 1\n", "span:1"),
+          createSegment("NOISE 2\n", "span:1"),
+          createSegment("SIGNAL 2\n", "span:1"),
+        ],
+        { "span:1": { manifestName: "resource-a" } },
+        0,
+        4,
+      );
+      logStore.append(logList1);
+
+      expect(logStore.checkpoint).toBe(4);
+      const lines1 = logStore.allLog();
+      expect(lines1.length).toBe(2);
+
+      // Second append continuing from checkpoint
+      const logList2 = createLogList(
+        [
+          createSegment("NOISE 3\n", "span:1"),
+          createSegment("SIGNAL 3\n", "span:1"),
+        ],
+        { "span:1": { manifestName: "resource-a" } },
+        4,
+        6,
+      );
+      logStore.append(logList2);
+
+      expect(logStore.checkpoint).toBe(6);
+      const lines2 = logStore.allLog();
+      expect(lines2.length).toBe(3);
+      expect(lines2[2].text).toBe("SIGNAL 3");
+    });
+  });
+
   describe("edge cases", () => {
     test("handles segments without span in spans map gracefully", () => {
       const logList = createLogList(
