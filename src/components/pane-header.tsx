@@ -18,6 +18,7 @@ export function PaneHeader(props: PaneHeaderProps) {
       paddingRight={2}
       flexDirection="row"
       flexShrink={0}
+      justifyContent="space-between"
     >
       <text fg={theme.primary} attributes={1} flexShrink={0}>
         {props.title}

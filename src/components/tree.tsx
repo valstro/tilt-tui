@@ -29,6 +29,7 @@ import { type Resource, ResourceStatus } from "../tilt/types";
 import { Commands } from "@/commands";
 import { getEffectiveStatus } from "@/tilt/status-utils";
 import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
+import { StatusCounts } from "./status-counts";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -96,10 +97,12 @@ function buildTreeNodes(
   // Build nodes
   for (const groupKey of groupOrder) {
     const indices = grouped.get(groupKey)!;
-    
+
     // Check if any resources in this group are enabled
-    const hasEnabledResources = indices.some((idx) => !resources[idx].isDisabled);
-    
+    const hasEnabledResources = indices.some(
+      (idx) => !resources[idx].isDisabled,
+    );
+
     // Default to collapsed if no enabled resources, expanded otherwise
     const defaultExpanded = hasEnabledResources;
     const expanded = expandedGroups[groupKey] ?? defaultExpanded;
@@ -340,13 +343,13 @@ export function Tree() {
       paddingLeft={isFocused() ? 0 : 1}
       {...focusBorder(theme, isFocused())}
     >
-      <PaneHeader title={`Resources (${filteredResourceCount()})`}>
+      <PaneHeader title={`Resources`}>
         <Show when={state.statusFilter !== "all"}>
           <text fg={statusColor(theme, state.statusFilter)}>
-            {" "}
             [{state.statusFilter}]
           </text>
         </Show>
+        <StatusCounts narrow={true} resources={state.resources} theme={theme} />
       </PaneHeader>
 
       {/* Tree content */}
