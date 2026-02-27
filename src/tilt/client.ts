@@ -270,11 +270,15 @@ export class TiltClient {
           environment: {
             type: "string",
           },
+          profile: {
+            type: "string",
+          },
         },
       });
 
       return {
         environment: tiltArgs.values.environment,
+        profile: tiltArgs.values.profile,
       };
     } catch (e) {
       console.error("error parsing tilt args", e);

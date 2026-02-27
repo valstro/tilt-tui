@@ -349,7 +349,12 @@ export function Tree() {
             [{state.statusFilter}]
           </text>
         </Show>
-        <StatusCounts narrow={true} resources={state.resources} theme={theme} />
+        <StatusCounts
+          narrow={true}
+          resources={state.resources}
+          activeProfile={state.activeProfile}
+          theme={theme}
+        />
       </PaneHeader>
 
       {/* Tree content */}

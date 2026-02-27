@@ -43,7 +43,8 @@ const FILTER_ORDER: StatusFilter[] = [
 
 interface TiltState {
   connectionStatus: ConnectionStatus;
-  namespace: string;
+  namespace: string | null;
+  activeProfile: string | null;
   resources: Resource[];
   selectedResource: string | null;
   statusFilter: StatusFilter;
@@ -80,7 +81,8 @@ export function TiltProvider(
 
   const [state, setState] = createStore<TiltState>({
     connectionStatus: "connecting",
-    namespace: "",
+    namespace: null,
+    activeProfile: null,
     resources: [],
     selectedResource: null,
     statusFilter: "all",
@@ -197,6 +199,9 @@ export function TiltProvider(
     setState("tiltArgs", tiltArgs);
     if (tiltArgs.environment) {
       setState("namespace", String(tiltArgs.environment));
+    }
+    if (tiltArgs.profile) {
+      setState("activeProfile", String(tiltArgs.profile));
     }
 
     while (true) {

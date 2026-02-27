@@ -13,6 +13,7 @@ interface StatusCountsProps {
   narrow: boolean;
   theme: typeof defaultTheme;
   resources: Resource[];
+  activeProfile: string | null;
 }
 
 interface StatusCounts {
@@ -99,7 +100,10 @@ export function StatusCounts(props: StatusCountsProps) {
         color: theme.success,
       });
     }
-    if (c.disabled > 0) {
+
+    // only show disabled resources if there's no active profile.
+    // profiles cause lots of resources to be disabled
+    if (props.activeProfile && c.disabled > 0) {
       items.push({ icon: "⊘", text: `${c.disabled}`, color: theme.textMuted });
     }
 
