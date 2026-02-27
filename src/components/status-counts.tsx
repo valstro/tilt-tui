@@ -103,7 +103,7 @@ export function StatusCounts(props: StatusCountsProps) {
 
     // only show disabled resources if there's no active profile.
     // profiles cause lots of resources to be disabled
-    if (props.activeProfile && c.disabled > 0) {
+    if (!props.activeProfile && c.disabled > 0) {
       items.push({ icon: "⊘", text: `${c.disabled}`, color: theme.textMuted });
     }
 
