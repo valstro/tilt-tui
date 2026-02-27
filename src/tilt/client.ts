@@ -35,6 +35,10 @@ export interface ButtonsUpdate {
   buttons: APIButton[];
 }
 
+export interface SessionUpdate {
+  tiltStartTime: string;
+}
+
 /** @deprecated Use ResourcesUpdate instead */
 export type TiltData = ResourcesUpdate;
 
@@ -50,6 +54,7 @@ export interface TiltStreams {
   resources: Stream<ResourcesUpdate, void>;
   buttons: Stream<ButtonsUpdate, void>;
   logs: Stream<LogsUpdate, void>;
+  session: Stream<SessionUpdate, void>;
 }
 
 export class TiltClient {
@@ -131,6 +136,10 @@ export class TiltClient {
         ButtonsUpdate,
         void
       >();
+      const sessionSignal: Signal<SessionUpdate, void> = createSignal<
+        SessionUpdate,
+        void
+      >();
 
       const ws = new WebSocket(wsURL);
 
@@ -143,6 +152,12 @@ export class TiltClient {
               "USING TILTFILE",
               viewResp.uiSession?.status.tiltfileKey,
             );
+          }
+
+          if (viewResp.uiSession?.status.tiltStartTime) {
+            sessionSignal.send({
+              tiltStartTime: viewResp.uiSession.status.tiltStartTime,
+            });
           }
 
           if (viewResp.uiResources) {
@@ -179,16 +194,18 @@ export class TiltClient {
         resourcesSignal.close();
         buttonsSignal.close();
         logsSignal.close();
+        sessionSignal.close();
       };
 
       yield* waitForWebSocketOpen(ws);
 
       try {
-        // Provide both subscriptions to the caller
+        // Provide all subscriptions to the caller
         yield* provide({
           resources: resourcesSignal,
           buttons: buttonsSignal,
           logs: logsSignal,
+          session: sessionSignal,
         });
       } finally {
         // Cleanup: close WebSocket when scope exits

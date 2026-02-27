@@ -48,6 +48,7 @@ interface TiltState {
   selectedResource: string | null;
   statusFilter: StatusFilter;
   tiltArgs: Record<string, string | boolean | undefined>;
+  tiltStartTime: string | null;
 }
 
 interface TiltContextValue {
@@ -84,6 +85,7 @@ export function TiltProvider(
     selectedResource: null,
     statusFilter: "all",
     tiltArgs: {},
+    tiltStartTime: null,
   });
 
   // Task handle for the main Effection operation
@@ -201,13 +203,14 @@ export function TiltProvider(
       setState("connectionStatus", "connecting");
 
       try {
-        // Get both streams from a single WebSocket connection
-        const { resources, buttons, logs } = yield* client.useTiltStreams();
+        // Get all streams from a single WebSocket connection
+        const { resources, buttons, logs, session } =
+          yield* client.useTiltStreams();
 
         setState("connectionStatus", "connected");
 
-        // Spawn both consumers concurrently
-        // When WebSocket disconnects, both streams close and tasks complete
+        // Spawn all consumers concurrently
+        // When WebSocket disconnects, all streams close and tasks complete
         const resourcesTask = yield* spawn(function* () {
           for (const update of yield* each(resources)) {
             updateResources(update.resources);
@@ -229,9 +232,16 @@ export function TiltProvider(
           }
         });
 
+        const sessionTask = yield* spawn(function* () {
+          for (const update of yield* each(session)) {
+            setState("tiltStartTime", update.tiltStartTime);
+            yield* each.next();
+          }
+        });
+
         // Wait for all streams to close (indicates WebSocket disconnect)
-        // When this returns, the scope exits and logsTask is automatically cleaned up
-        yield* all([resourcesTask, buttonsTask, logsTask]);
+        // When this returns, the scope exits and all tasks are automatically cleaned up
+        yield* all([resourcesTask, buttonsTask, logsTask, sessionTask]);
 
         // Stream closed normally - reconnect
         console.warn("WebSocket stream closed, reconnecting...");

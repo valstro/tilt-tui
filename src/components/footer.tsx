@@ -29,12 +29,12 @@ export function Footer() {
   const helpItems = createMemo(() => {
     const items = allHelpItems();
     const width = resourceViewWidth();
-    
+
     // When ResourceView is narrow (< 80 chars), show only the help shortcut
     if (width < 80) {
       return items.filter((item) => item.description === "help");
     }
-    
+
     return items;
   });
 
