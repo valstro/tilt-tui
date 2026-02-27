@@ -13,7 +13,7 @@ interface StatusCountsProps {
   narrow: boolean;
   theme: typeof defaultTheme;
   resources: Resource[];
-  activeProfile: string | null;
+  activeProfile?: string | null;
 }
 
 interface StatusCounts {

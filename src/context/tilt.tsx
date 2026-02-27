@@ -5,6 +5,7 @@ import {
   onCleanup,
   type ParentProps,
   createSignal,
+  batch,
 } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import {
@@ -196,13 +197,15 @@ export function TiltProvider(
    */
   function* mainOperation(): Operation<void> {
     const tiltArgs = yield* call(() => client.getTiltArgs());
-    setState("tiltArgs", tiltArgs);
-    if (tiltArgs.environment) {
-      setState("namespace", String(tiltArgs.environment));
-    }
-    if (tiltArgs.profile) {
-      setState("activeProfile", String(tiltArgs.profile));
-    }
+    batch(() => {
+      setState("tiltArgs", tiltArgs);
+      if (tiltArgs.environment) {
+        setState("namespace", String(tiltArgs.environment));
+      }
+      if (tiltArgs.profile) {
+        setState("activeProfile", String(tiltArgs.profile));
+      }
+    });
 
     while (true) {
       setState("connectionStatus", "connecting");
