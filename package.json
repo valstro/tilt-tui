@@ -16,7 +16,7 @@
   "dependencies": {
     "@opentui/core": "0.1.75",
     "@opentui/solid": "0.1.75",
-    "effection": "^4.0.2",
+    "effection": "4.0.2",
     "solid-js": "1.9.9"
   },
   "devDependencies": {
