@@ -50,6 +50,7 @@ function AppContent() {
     switch (command) {
       case Commands.APP_QUIT:
         renderer.destroy();
+        process.exit(0);
         break;
       case Commands.SIDEBAR_TOGGLE:
         toggleSidebar();
