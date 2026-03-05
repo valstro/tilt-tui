@@ -72,7 +72,7 @@ export function CommandPalette(props: CommandPaletteProps) {
           result.push({
             title: button.text,
             value: `button:${button.name}`,
-            description: `Trigger ${button.name}`,
+            description: `${button.name}`,
             category: "Actions",
             button: button.raw,
           });

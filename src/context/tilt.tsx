@@ -49,6 +49,7 @@ interface TiltState {
   resources: Resource[];
   selectedResource: string | null;
   statusFilter: StatusFilter;
+  showDisabledResources: boolean;
   tiltArgs: Record<string, string | boolean | undefined>;
   tiltStartTime: string | null;
 }
@@ -62,6 +63,7 @@ interface TiltContextValue {
   toggleResourceDisable: (name: string) => Promise<void>;
   cycleStatusFilter: () => void;
   resetStatusFilter: () => void;
+  toggleShowDisabledResources: () => void;
   /** Names of active log filters from user config */
   activeLogFilterNames: () => string[];
 }
@@ -87,6 +89,7 @@ export function TiltProvider(
     resources: [],
     selectedResource: null,
     statusFilter: "all",
+    showDisabledResources: true,
     tiltArgs: {},
     tiltStartTime: null,
   });
@@ -215,7 +218,13 @@ export function TiltProvider(
         const { resources, buttons, logs, session } =
           yield* client.useTiltStreams();
 
-        setState("connectionStatus", "connected");
+        batch(() => {
+          setState("connectionStatus", "connected");
+          setState("resources", []);
+          setState("selectedResource", null);
+          setState("tiltStartTime", null);
+        });
+        logStore.clear();
 
         // Spawn all consumers concurrently
         // When WebSocket disconnects, all streams close and tasks complete
@@ -257,7 +266,7 @@ export function TiltProvider(
         console.error("WebSocket error:", err);
       }
 
-      // Connection lost or errored - wait before reconnecting
+      // Connection lost or errored - leave state intact until reconnect
       setState("connectionStatus", "disconnected");
       yield* sleep(3000);
     }
@@ -276,6 +285,10 @@ export function TiltProvider(
 
   function resetStatusFilter() {
     setState("statusFilter", "all");
+  }
+
+  function toggleShowDisabledResources() {
+    setState("showDisabledResources", (current) => !current);
   }
 
   async function triggerResource(name: string) {
@@ -357,6 +370,7 @@ export function TiltProvider(
     toggleResourceDisable,
     cycleStatusFilter,
     resetStatusFilter,
+    toggleShowDisabledResources,
     activeLogFilterNames,
   };
 

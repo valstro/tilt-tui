@@ -132,6 +132,23 @@ class LogStore implements LogAlertIndex {
     return this.logFilters;
   }
 
+  /**
+   * Clear all logs and reset the store to initial state.
+   * Used when reconnecting to ensure clean state.
+   */
+  clear(): void {
+    this.spans = {};
+    this.segments = [];
+    this.segmentToLine = [];
+    this.lines = [];
+    this.checkpoint = 0;
+    this.lineCache = {};
+    this.logLength = 0;
+    this.invokeUpdateCallbacks({
+      action: LogUpdateAction.truncate,
+    });
+  }
+
   addUpdateListener(c: callback) {
     if (!this.updateCallbacks.includes(c)) {
       this.updateCallbacks.push(c);

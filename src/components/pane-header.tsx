@@ -5,11 +5,14 @@ import { defaultTheme } from "../theme/theme";
 
 interface PaneHeaderProps {
   title: string;
+  color?: string;
   children?: JSX.Element;
 }
 
 export function PaneHeader(props: PaneHeaderProps) {
   const theme = defaultTheme;
+
+  console.log("COLOR", props.color);
 
   return (
     <box
@@ -20,7 +23,7 @@ export function PaneHeader(props: PaneHeaderProps) {
       flexShrink={0}
       justifyContent="space-between"
     >
-      <text fg={theme.primary} attributes={1} flexShrink={0}>
+      <text fg={props.color ?? theme.primary} attributes={1} flexShrink={0}>
         {props.title}
       </text>
       {props.children}

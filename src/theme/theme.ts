@@ -106,8 +106,12 @@ export function statusColor(theme: Theme, status: StatusFilter): string {
       return theme.error;
     case ResourceStatus.Warning:
       return theme.warning;
-    default:
+    case ResourceStatus.Disabled:
+    case ResourceStatus.None:
       return theme.textMuted;
+    default:
+      // title color for all resources
+      return theme.primary;
   }
 }
 

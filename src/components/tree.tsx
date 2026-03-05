@@ -140,6 +140,7 @@ export function Tree() {
     toggleResourceDisable,
     cycleStatusFilter,
     resetStatusFilter,
+    toggleShowDisabledResources,
   } = useTilt();
   const { state: focusState, setActivePane } = useFocus();
   const theme = defaultTheme;
@@ -160,19 +161,33 @@ export function Tree() {
   // Avoids intermediate memo overhead from chained dependencies
   const nodes = createMemo(() => {
     const filter = state.statusFilter;
-    const resources =
+    let resources =
       filter === "all"
         ? state.resources
         : state.resources.filter((r) => getEffectiveStatus(r) === filter);
+
+    // Filter out disabled resources if showDisabledResources is false
+    if (!state.showDisabledResources) {
+      resources = resources.filter((r) => !r.isDisabled);
+    }
+
     return buildTreeNodes(resources, expandedGroups);
   });
 
   // Derived: count of filtered resources for header display
   const filteredResourceCount = createMemo(() => {
     const filter = state.statusFilter;
-    if (filter === "all") return state.resources.length;
-    return state.resources.filter((r) => getEffectiveStatus(r) === filter)
-      .length;
+    let resources =
+      filter === "all"
+        ? state.resources
+        : state.resources.filter((r) => getEffectiveStatus(r) === filter);
+
+    // Filter out disabled resources if showDisabledResources is false
+    if (!state.showDisabledResources) {
+      resources = resources.filter((r) => !r.isDisabled);
+    }
+
+    return resources.length;
   });
 
   // Reset cursor when filter changes
@@ -200,10 +215,16 @@ export function Tree() {
           // Find the cursor position for this resource in the nodes list
           // Need to rebuild nodes with the expanded group to find correct index
           const filter = state.statusFilter;
-          const filtered =
+          let filtered =
             filter === "all"
               ? state.resources
               : state.resources.filter((r) => getEffectiveStatus(r) === filter);
+
+          // Filter out disabled resources if showDisabledResources is false
+          if (!state.showDisabledResources) {
+            filtered = filtered.filter((r) => !r.isDisabled);
+          }
+
           const updatedNodes = buildTreeNodes(filtered, {
             ...expandedGroups,
             [groupKey]: true,
@@ -317,6 +338,9 @@ export function Tree() {
           }
           break;
         }
+        case Commands.TREE_TOGGLE_DISABLED:
+          toggleShowDisabledResources();
+          break;
         case Commands.STATUS_FILTER_CYCLE:
           cycleStatusFilter();
           break;
@@ -343,11 +367,16 @@ export function Tree() {
       paddingLeft={isFocused() ? 0 : 1}
       {...focusBorder(theme, isFocused())}
     >
-      <PaneHeader title={`Resources`}>
-        <Show when={state.statusFilter !== "all"}>
-          <text fg={statusColor(theme, state.statusFilter)}>
-            [{state.statusFilter}]
-          </text>
+      <PaneHeader
+        title={
+          state.statusFilter === "all"
+            ? "All Resources"
+            : `[${state.statusFilter}]`
+        }
+        color={statusColor(theme, state.statusFilter)}
+      >
+        <Show when={state.showDisabledResources}>
+          <text fg={theme.textMuted}>[⊘]</text>
         </Show>
         <StatusCounts
           narrow={true}

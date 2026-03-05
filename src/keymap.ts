@@ -109,6 +109,13 @@ export const keymap: KeyMapping[] = [
   },
   {
     modes: ["tree"],
+    key: "d",
+    command: Commands.TREE_TOGGLE_DISABLED,
+    description: "toggle disabled",
+    showInHelp: true,
+  },
+  {
+    modes: ["tree"],
     key: "f",
     command: Commands.STATUS_FILTER_CYCLE,
     description: "filter status",
@@ -125,10 +132,14 @@ export const keymap: KeyMapping[] = [
     key: "r",
     command: Commands.RELOAD_RESOURCE,
     description: "reload resource",
+    showInHelp: true,
   },
   {
     modes: ["tree", "resource"],
     key: "d",
+    modifiers: {
+      ctrl: true,
+    },
     command: Commands.RESOURCE_DISABLE_TOGGLE,
     description: "toggle disable",
   },

@@ -16,6 +16,7 @@ export const Commands = {
 
   // Tree-specific
   TREE_SELECT: "tree.select",
+  TREE_TOGGLE_DISABLED: "tree.toggle.disabled",
   STATUS_FILTER_CYCLE: "status.filter.cycle",
   STATUS_FILTER_RESET: "status.filter.reset",
 
