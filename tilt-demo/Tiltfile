@@ -314,3 +314,5 @@ local_resource('echo 37', cmd='echo foo', labels=['disableds'])
 local_resource('echo 38', cmd='echo foo', labels=['disableds'])
 local_resource('echo 39', cmd='echo foo', labels=['disableds'])
 local_resource('echo 40', cmd='echo foo', labels=['disableds'])
+
+local('sh -c "sleep 5s"')

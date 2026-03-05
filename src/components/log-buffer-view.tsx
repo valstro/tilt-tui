@@ -275,6 +275,8 @@ export function LogBufferView(
     if (!frameBuffer) return;
 
     const fb = frameBuffer.frameBuffer;
+    if (!fb) return;
+
     const { width: w, height: h } = dimensions();
     const c = colors();
 
