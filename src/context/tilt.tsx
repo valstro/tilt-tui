@@ -221,7 +221,6 @@ export function TiltProvider(
         batch(() => {
           setState("connectionStatus", "connected");
           setState("resources", []);
-          setState("selectedResource", null);
           setState("tiltStartTime", null);
         });
         logStore.clear();
