@@ -89,7 +89,7 @@ export function TiltProvider(
     resources: [],
     selectedResource: null,
     statusFilter: "all",
-    showDisabledResources: true,
+    showDisabledResources: false,
     tiltArgs: {},
     tiltStartTime: null,
   });
