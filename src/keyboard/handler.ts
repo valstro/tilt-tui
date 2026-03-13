@@ -20,10 +20,10 @@ export interface KeyEvent {
 export function handleKeyEvent(
   event: KeyEvent,
   mode: Mode,
-  paletteOpen: boolean,
+  modalOpen: boolean,
 ): Command | null {
-  // don't execute any focusable mode commands when palette is open
-  if (paletteOpen && mode !== "app") {
+  // don't execute any focusable mode commands when a modal is open
+  if (modalOpen && mode !== "app") {
     return null;
   }
 
