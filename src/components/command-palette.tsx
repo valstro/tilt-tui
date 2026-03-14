@@ -81,7 +81,12 @@ export function CommandPalette(props: CommandPaletteProps) {
     }
 
     // Group 3: Commands for app (static)
-    const appBindings = getHelpMappingsForMode("app");
+    const appBindings = getHelpMappingsForMode("app").concat({
+      description: "exit",
+      key: "x",
+      command: "app.quit",
+    });
+
     const modeBindings = getHelpMappingsForMode(focusState.activePane);
     for (const mapping of appBindings.concat(modeBindings)) {
       result.push({
