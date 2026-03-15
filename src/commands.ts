@@ -38,6 +38,9 @@ export const Commands = {
   // Help
   HELP_OPEN: "help.open",
 
+  // Engine info
+  ENGINE_INFO_OPEN: "engine.info.open",
+
   // Log search/filter
   LOG_SEARCH_OPEN: "logs.search.open",
   LOG_SEARCH_CLEAR: "logs.search.clear",

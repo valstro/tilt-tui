@@ -6,6 +6,7 @@ import type {
   APILogList,
   APIButton,
   APIInputStatus,
+  APIFileWatchList,
 } from "./api-types";
 import type { Resource, LogEntry } from "./types";
 import { resourceFromAPIResource as convertResource } from "./types";
@@ -406,6 +407,39 @@ export class TiltClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Fetch all FileWatch resources via the tilt CLI
+   */
+  async getFileWatches(): Promise<APIFileWatchList> {
+    const tiltBinary = Bun.which("tilt");
+    if (!tiltBinary) {
+      throw new Error("unable to locate tilt binary in your environment");
+    }
+
+    const proc = Bun.spawn([tiltBinary, "get", "filewatches", "-o", "json"], {
+      env: {
+        ...process.env,
+        TILT_DISABLE_ANALYTICS: "true",
+        DO_NOT_TRACK: "true",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const output = await new Response(proc.stdout).text();
+    const errorOutput = await new Response(proc.stderr).text();
+    const exitCode = await proc.exited;
+
+    if (exitCode !== 0) {
+      throw new Error(
+        `tilt get filewatches failed (exit ${exitCode}): ${errorOutput}`,
+      );
+    }
+
+    const parsed = JSON.parse(output);
+    return { items: parsed.items ?? [] };
   }
 
   /**

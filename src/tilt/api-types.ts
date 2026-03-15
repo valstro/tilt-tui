@@ -194,6 +194,39 @@ export interface APIViewResponse {
   isComplete: boolean;
 }
 
+// FileWatch API types (from /proxy/apis/tilt.dev/v1alpha1/filewatches)
+
+export interface FileWatchIgnore {
+  basePath: string;
+  patterns?: string[];
+}
+
+export interface FileWatchSpec {
+  watchedPaths: string[];
+  ignores?: FileWatchIgnore[];
+}
+
+export interface FileWatchEvent {
+  seenFiles: string[];
+  time: string;
+}
+
+export interface FileWatchStatus {
+  fileEvents?: FileWatchEvent[];
+  lastEventTime?: string | null;
+  error?: string;
+}
+
+export interface APIFileWatch {
+  metadata: APIResourceMetadata;
+  spec: FileWatchSpec;
+  status: FileWatchStatus;
+}
+
+export interface APIFileWatchList {
+  items: APIFileWatch[];
+}
+
 // Helper functions for API types
 
 export function isTiltfile(status: APIResourceStatus): boolean {

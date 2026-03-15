@@ -16,7 +16,8 @@ export type ModalState =
   | "resourcePicker"
   | "help"
   | "logSearch"
-  | "buttonForm";
+  | "buttonForm"
+  | "engineInfo";
 
 interface FocusState {
   activePane: Pane;

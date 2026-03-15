@@ -60,6 +60,13 @@ export const keymap: KeyMapping[] = [
     description: "help",
     showInHelp: true,
   },
+  {
+    modes: ["app"],
+    key: "i",
+    command: Commands.ENGINE_INFO_OPEN,
+    description: "engine info",
+    showInHelp: true,
+  },
 
   // Shared navigation (tree + resource)
   {

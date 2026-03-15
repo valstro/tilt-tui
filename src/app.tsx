@@ -14,6 +14,7 @@ import {
 import { ResourcePicker } from "./components/resource-picker";
 import { KeyboardHelp } from "./components/keyboard-help";
 import { ButtonFormModal } from "./components/button-form-modal";
+import { EngineInfo } from "./components/engine-info";
 import { defaultTheme } from "./theme/theme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
@@ -70,6 +71,9 @@ function AppContent() {
         break;
       case Commands.HELP_OPEN:
         openModal("help");
+        break;
+      case Commands.ENGINE_INFO_OPEN:
+        openModal("engineInfo");
         break;
     }
   }
@@ -150,6 +154,11 @@ function AppContent() {
           onClose={handleFormClose}
           onSubmit={handleFormSubmit}
         />
+      </Show>
+
+      {/* Engine Info overlay */}
+      <Show when={activeModal() === "engineInfo"}>
+        <EngineInfo onClose={() => closeModal()} />
       </Show>
 
       {/* Header - only shown when sidebar is hidden */}
