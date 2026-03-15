@@ -6,7 +6,10 @@ import { useTheme } from "@/hooks/useTheme";
 
 export type ModalSize = "sm" | "md" | "lg";
 
-const SIZE_CONFIG: Record<ModalSize, { width: number; marginLeft: number }> = {
+export const SIZE_CONFIG: Record<
+  ModalSize,
+  { width: number; marginLeft: number }
+> = {
   sm: { width: 50, marginLeft: -25 },
   md: { width: 60, marginLeft: -30 },
   lg: { width: 100, marginLeft: -50 },

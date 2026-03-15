@@ -2,10 +2,17 @@
 
 import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable } from "@opentui/core";
-import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  Show,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import { useTheme } from "@/hooks/useTheme";
-import { Modal } from "./modal/modal";
+import { Modal, ModalSize, SIZE_CONFIG } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
@@ -15,9 +22,11 @@ import { fuzzyMatch } from "@/utils/fuzzy";
 const CONTINUATION_PREFIX = "↳ ";
 const CONTINUATION_PREFIX_WIDTH = 2;
 
-// Modal is 80 wide, scrollbox has paddingLeft=1 paddingRight=1,
+const INFO_MODAL_SIZE: ModalSize = "lg";
+
+// scrollbox has paddingLeft=1 paddingRight=1,
 // items have paddingLeft=2 paddingRight=2
-const CONTENT_WIDTH = 74;
+const CONTENT_WIDTH = SIZE_CONFIG[INFO_MODAL_SIZE].width - 6;
 
 function wrapText(text: string, maxWidth: number): string[] {
   if (text.length <= maxWidth) return [text];
@@ -133,7 +142,11 @@ export function EngineInfo(props: EngineInfoProps) {
       for (const ignore of fw.spec.ignores ?? []) {
         for (const pattern of ignore.patterns ?? []) {
           const display = `${ignore.basePath}/${pattern}`;
-          items.push({ watchName: fw.metadata.name, path: display, kind: "ignore" });
+          items.push({
+            watchName: fw.metadata.name,
+            path: display,
+            kind: "ignore",
+          });
         }
       }
       const events = fw.status.fileEvents;
@@ -255,7 +268,11 @@ export function EngineInfo(props: EngineInfoProps) {
     }
   }
 
-  function handleKeyboard(evt: { name: string; ctrl?: boolean; preventDefault: () => void }) {
+  function handleKeyboard(evt: {
+    name: string;
+    ctrl?: boolean;
+    preventDefault: () => void;
+  }) {
     if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
       move(-1);
@@ -304,16 +321,22 @@ export function EngineInfo(props: EngineInfoProps) {
         placeholder="Type to filter paths..."
       />
 
-      <Show when={!loading()} fallback={
-        <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
-          <text fg={theme.textMuted}>Loading file watches...</text>
-        </box>
-      }>
-        <Show when={!error()} fallback={
+      <Show
+        when={!loading()}
+        fallback={
           <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
-            <text fg={theme.error}>Error: {error()}</text>
+            <text fg={theme.textMuted}>Loading file watches...</text>
           </box>
-        }>
+        }
+      >
+        <Show
+          when={!error()}
+          fallback={
+            <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
+              <text fg={theme.error}>Error: {error()}</text>
+            </box>
+          }
+        >
           <Show
             when={grouped().length > 0}
             fallback={
@@ -338,7 +361,11 @@ export function EngineInfo(props: EngineInfoProps) {
                       </text>
                     </box>
 
-                    <For each={displayRows().filter((r) => r.item.watchName === name)}>
+                    <For
+                      each={displayRows().filter(
+                        (r) => r.item.watchName === name,
+                      )}
+                    >
                       {(row) => {
                         const isSelected = () =>
                           row.itemIndex === store.selected;
@@ -356,7 +383,9 @@ export function EngineInfo(props: EngineInfoProps) {
                               flexGrow={1}
                               fg={rowColor(row, isSelected())}
                               attributes={
-                                row.isContinuation ? TextAttributes.DIM : undefined
+                                row.isContinuation
+                                  ? TextAttributes.DIM
+                                  : undefined
                               }
                               wrapMode="none"
                               overflow="hidden"
