@@ -3,7 +3,7 @@
 
 import { createSignal } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
-import { ModalShell } from "./modal/modal-shell";
+import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { ModalFilterInput } from "./modal/modal-filter-input";
 import type { LogSearchFilter } from "./log-buffer";
@@ -40,7 +40,7 @@ export function LogSearchModal(props: LogSearchModalProps) {
   }
 
   return (
-    <ModalShell size="sm" onClose={props.onClose} onKeyboard={handleKeyboard}>
+    <Modal size="sm" onClose={props.onClose} onKeyboard={handleKeyboard}>
       <ModalHeader title="Search Logs" />
 
       <box paddingLeft={2} paddingRight={2}>
@@ -65,7 +65,7 @@ export function LogSearchModal(props: LogSearchModalProps) {
       <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
         <text fg={theme.textMuted}>Enter to search</text>
       </box>
-    </ModalShell>
+    </Modal>
   );
 }
 

@@ -66,7 +66,7 @@ export function useListNavigation(
   }
 
   function setFilter(value: string) {
-    setStore("filter", value);
+    setStore("filter", value.trim());
   }
 
   function setSelected(index: number) {

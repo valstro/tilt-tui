@@ -5,7 +5,7 @@ import type { ScrollBoxRenderable } from "@opentui/core";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useTheme } from "@/hooks/useTheme";
-import { ModalShell } from "./modal/modal-shell";
+import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
@@ -296,7 +296,7 @@ export function EngineInfo(props: EngineInfoProps) {
   }
 
   return (
-    <ModalShell size="lg" onClose={props.onClose} onKeyboard={handleKeyboard}>
+    <Modal size="lg" onClose={props.onClose} onKeyboard={handleKeyboard}>
       <ModalHeader title="Engine Info — File Watches" />
 
       <ModalFilterInput
@@ -374,6 +374,6 @@ export function EngineInfo(props: EngineInfoProps) {
           </Show>
         </Show>
       </Show>
-    </ModalShell>
+    </Modal>
   );
 }

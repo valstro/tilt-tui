@@ -9,10 +9,10 @@ export type ModalSize = "sm" | "md" | "lg";
 const SIZE_CONFIG: Record<ModalSize, { width: number; marginLeft: number }> = {
   sm: { width: 50, marginLeft: -25 },
   md: { width: 60, marginLeft: -30 },
-  lg: { width: 80, marginLeft: -40 },
+  lg: { width: 100, marginLeft: -50 },
 };
 
-interface ModalShellProps {
+interface ModalProps {
   size?: ModalSize;
   onClose: () => void;
   children: JSX.Element;
@@ -20,7 +20,7 @@ interface ModalShellProps {
   onKeyboard?: (evt: Parameters<Parameters<typeof useKeyboard>[0]>[0]) => void;
 }
 
-export function ModalShell(props: ModalShellProps) {
+export function Modal(props: ModalProps) {
   const theme = useTheme();
   const config = () => SIZE_CONFIG[props.size ?? "md"];
 

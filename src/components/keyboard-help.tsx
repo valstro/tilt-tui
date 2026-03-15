@@ -4,7 +4,7 @@ import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { createMemo, For } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
-import { ModalShell } from "./modal/modal-shell";
+import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { keymap } from "../keymap";
 import { formatKeyDisplay, type Mode, type KeyMapping } from "../keyboard/keymap-utils";
@@ -46,7 +46,7 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
   });
 
   function handleKeyboard(evt: { name: string; shift?: boolean; preventDefault: () => void }) {
-    // Additional close keys beyond escape (handled by ModalShell)
+    // Additional close keys beyond escape (handled by Modal)
     if (evt.name === "?" || evt.name === "q") {
       evt.preventDefault();
       props.onClose();
@@ -71,7 +71,7 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
   const maxHeight = 20;
 
   return (
-    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+    <Modal size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
       <ModalHeader title="Keyboard Shortcuts" hint="j/k scroll · esc/q/?" />
 
       <scrollbox
@@ -109,6 +109,6 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
           )}
         </For>
       </scrollbox>
-    </ModalShell>
+    </Modal>
   );
 }

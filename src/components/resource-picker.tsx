@@ -5,7 +5,7 @@ import type { ScrollBoxRenderable } from "@opentui/core";
 import { createMemo, For, Show } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { ModalShell } from "./modal/modal-shell";
+import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
@@ -33,6 +33,11 @@ export function ResourcePicker(props: ResourcePickerProps) {
   const { getBlinkingColor } = useBlinkWhenBuilding({ theme });
 
   let scrollRef: ScrollBoxRenderable | undefined;
+
+  const nav = useListNavigation({
+    itemCount: () => flat().length,
+    scrollRef: () => scrollRef,
+  });
 
   const options = createMemo(() => {
     const needle = nav.filter();
@@ -82,11 +87,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
     return result;
   });
 
-  const nav = useListNavigation({
-    itemCount: () => flat().length,
-    scrollRef: () => scrollRef,
-  });
-
   const selected = createMemo(() => flat()[nav.selected()]);
 
   function handleSelect() {
@@ -106,7 +106,11 @@ export function ResourcePicker(props: ResourcePickerProps) {
     props.onClose();
   }
 
-  function handleKeyboard(evt: { name: string; ctrl?: boolean; preventDefault: () => void }) {
+  function handleKeyboard(evt: {
+    name: string;
+    ctrl?: boolean;
+    preventDefault: () => void;
+  }) {
     if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
       nav.move(-1);
@@ -129,7 +133,7 @@ export function ResourcePicker(props: ResourcePickerProps) {
   const maxHeight = 20;
 
   return (
-    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+    <Modal size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
       <ModalHeader title="Resources" />
 
       <ModalFilterInput
@@ -206,6 +210,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
           </For>
         </scrollbox>
       </Show>
-    </ModalShell>
+    </Modal>
   );
 }

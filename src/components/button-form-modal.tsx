@@ -6,7 +6,7 @@ import type { InputRenderable } from "@opentui/core";
 import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useTheme } from "@/hooks/useTheme";
-import { ModalShell } from "./modal/modal-shell";
+import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import type { APIButton } from "../tilt/api-types";
 import type { APIInputSpec } from "../tilt/api-types";
@@ -229,7 +229,7 @@ export function ButtonFormModal(props: ButtonFormModalProps) {
   // Confirmation-only modal (no visible inputs)
   if (isConfirmationOnly()) {
     return (
-      <ModalShell size="sm" onClose={props.onClose} onKeyboard={handleKeyboard}>
+      <Modal size="sm" onClose={props.onClose} onKeyboard={handleKeyboard}>
         <ModalHeader title={`Confirm: ${props.button.spec.text}`} />
 
         <box paddingLeft={2} paddingRight={2} paddingTop={1}>
@@ -249,13 +249,13 @@ export function ButtonFormModal(props: ButtonFormModalProps) {
           </text>
           <text fg={theme.textMuted}>Esc to cancel</text>
         </box>
-      </ModalShell>
+      </Modal>
     );
   }
 
   // Full form modal
   return (
-    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+    <Modal size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
       <ModalHeader title={props.button.spec.text} />
 
       <For each={visibleInputs()}>
@@ -277,6 +277,6 @@ export function ButtonFormModal(props: ButtonFormModalProps) {
         </text>
         <text fg={theme.textMuted}>Tab to cycle fields</text>
       </box>
-    </ModalShell>
+    </Modal>
   );
 }

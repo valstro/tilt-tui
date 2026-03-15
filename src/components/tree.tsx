@@ -521,26 +521,16 @@ function ResourceNode(props: {
       backgroundColor={backgroundColor()}
     >
       {/* Line 1: Resource name - runtime status border */}
-      <box
-        flexDirection="row"
-        border={["left"]}
-        borderStyle="heavy"
-        borderColor={runtimeColor()}
-        paddingLeft={1}
-      >
+      <box flexDirection="row" justifyContent="flex-start" gap={1}>
+        <text bg={runtimeColor()}> </text>
         <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
           {r().name}
         </text>
       </box>
 
       {/* Line 2: Timestamp + duration - build status border */}
-      <box
-        flexDirection="row"
-        border={["left"]}
-        borderStyle="heavy"
-        borderColor={buildColor()}
-        paddingLeft={1}
-      >
+      <box flexDirection="row" justifyContent="flex-start" gap={1}>
+        <text bg={buildColor()}> </text>
         <text fg={subheadingColor()}>{subheading()}</text>
       </box>
     </box>
