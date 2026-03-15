@@ -131,7 +131,7 @@ export const keymap: KeyMapping[] = [
     modes: ["tree", "resource"],
     key: "r",
     command: Commands.RELOAD_RESOURCE,
-    description: "reload resource",
+    description: "trigger reload",
     showInHelp: true,
   },
   {

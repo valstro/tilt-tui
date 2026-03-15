@@ -5,11 +5,18 @@ import {
   useContext,
   createSignal,
   type ParentProps,
-  Setter,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 
 export type Pane = "tree" | "resource";
+
+export type ModalState =
+  | "none"
+  | "palette"
+  | "resourcePicker"
+  | "help"
+  | "logSearch"
+  | "buttonForm";
 
 interface FocusState {
   activePane: Pane;
@@ -21,14 +28,10 @@ interface FocusContextValue {
   cyclePane: () => void;
   sidebarVisible: () => boolean;
   toggleSidebar: () => void;
-  paletteOpen: () => boolean;
-  setPaletteOpen: Setter<boolean>;
-  resourcePickerOpen: () => boolean;
-  setResourcePickerOpen: Setter<boolean>;
-  helpOpen: () => boolean;
-  setHelpOpen: Setter<boolean>;
-  logSearchOpen: () => boolean;
-  setLogSearchOpen: Setter<boolean>;
+  activeModal: () => ModalState;
+  openModal: (modal: ModalState) => void;
+  closeModal: () => void;
+  isModalOpen: () => boolean;
 }
 
 const FocusContext = createContext<FocusContextValue>();
@@ -38,11 +41,7 @@ export function FocusProvider(props: ParentProps) {
     activePane: "tree",
   });
 
-  const [paletteOpen, setPaletteOpen] = createSignal(false);
-  const [resourcePickerOpen, setResourcePickerOpen] = createSignal(false);
-  const [helpOpen, setHelpOpen] = createSignal(false);
-  const [logSearchOpen, setLogSearchOpen] = createSignal(false);
-
+  const [activeModal, setActiveModal] = createSignal<ModalState>("none");
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
   function setActivePane(pane: Pane) {
@@ -78,20 +77,28 @@ export function FocusProvider(props: ParentProps) {
     });
   }
 
+  function openModal(modal: ModalState) {
+    setActiveModal(modal);
+  }
+
+  function closeModal() {
+    setActiveModal("none");
+  }
+
+  function isModalOpen() {
+    return activeModal() !== "none";
+  }
+
   const value: FocusContextValue = {
     state,
     setActivePane,
     cyclePane,
     sidebarVisible,
     toggleSidebar,
-    paletteOpen,
-    setPaletteOpen,
-    resourcePickerOpen,
-    setResourcePickerOpen,
-    helpOpen,
-    setHelpOpen,
-    logSearchOpen,
-    setLogSearchOpen,
+    activeModal,
+    openModal,
+    closeModal,
+    isModalOpen,
   };
 
   return (

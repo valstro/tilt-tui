@@ -24,7 +24,7 @@ export function ResourceView() {
     toggleResourceDisable,
     activeLogFilterNames,
   } = useTilt();
-  const { state: focusState, logSearchOpen, setLogSearchOpen } = useFocus();
+  const { state: focusState, activeModal, openModal, closeModal } = useFocus();
   const theme = defaultTheme;
 
   // Local state
@@ -98,7 +98,7 @@ export function ResourceView() {
           break;
         }
         case Commands.LOG_SEARCH_OPEN: {
-          setLogSearchOpen(true);
+          openModal("logSearch");
           break;
         }
         case Commands.LOG_SEARCH_CLEAR: {
@@ -114,7 +114,7 @@ export function ResourceView() {
       }
     },
     // Disable keyboard handling when search modal is open
-    () => isFocused() && !logSearchOpen(),
+    () => isFocused() && activeModal() !== "logSearch",
   );
 
   // Handle search submission from modal
@@ -206,9 +206,9 @@ export function ResourceView() {
       </box>
 
       {/* Log Search Modal overlay */}
-      <Show when={logSearchOpen()}>
+      <Show when={activeModal() === "logSearch"}>
         <LogSearchModal
-          onClose={() => setLogSearchOpen(false)}
+          onClose={() => closeModal()}
           onSearch={handleSearch}
           initialQuery={searchQuery()}
         />

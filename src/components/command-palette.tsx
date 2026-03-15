@@ -15,6 +15,7 @@ import {
   type Command,
 } from "../keyboard/keymap-utils";
 import type { APIButton } from "../tilt/types";
+import type { APIInputSpec } from "../tilt/api-types";
 
 export interface PaletteOption {
   title: string;
@@ -27,9 +28,17 @@ export interface PaletteOption {
   button?: APIButton;
 }
 
+// Whether a button has inputs that need user interaction (not just hidden)
+function hasVisibleInputs(button: APIButton): boolean {
+  return (button.spec.inputs ?? []).some(
+    (input: APIInputSpec) => input.text || input.bool || input.choice,
+  );
+}
+
 interface CommandPaletteProps {
   onClose: () => void;
   onSelect: (option: PaletteOption) => void;
+  onButtonForm: (button: APIButton) => void;
 }
 
 export function CommandPalette(props: CommandPaletteProps) {
@@ -192,21 +201,31 @@ export function CommandPalette(props: CommandPaletteProps) {
     if (opt.url) {
       // Open URL in default browser
       client.openUrl(opt.url);
+      props.onClose();
     } else if (opt.button) {
-      // Click UI button and update the cached button with new resourceVersion
-      try {
-        const updatedButton = await client.clickButton(opt.button);
-        // Update the cached button so subsequent clicks work
-        opt.button = updatedButton;
-      } catch (err) {
-        console.error("Failed to click button:", err);
+      const needsForm = hasVisibleInputs(opt.button);
+      const needsConfirmation =
+        opt.button.spec.requiresConfirmation && !needsForm;
+
+      if (needsForm || needsConfirmation) {
+        // Close palette and hand off to form modal
+        props.onClose();
+        props.onButtonForm(opt.button);
+      } else {
+        // No visible inputs, no confirmation -- click immediately
+        try {
+          const updatedButton = await client.clickButton(opt.button);
+          opt.button = updatedButton;
+        } catch (err) {
+          console.error("Failed to click button:", err);
+        }
+        props.onClose();
       }
     } else if (opt.command) {
       // Execute command
       props.onSelect(opt);
+      props.onClose();
     }
-
-    props.onClose();
   }
 
   // Keyboard handling

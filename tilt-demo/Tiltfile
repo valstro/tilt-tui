@@ -20,7 +20,7 @@ namespace_create(
     os.getenv('NAMESPACE'),
 )
 
-load('ext://uibutton', 'cmd_button')
+load('ext://uibutton', 'cmd_button', 'text_input', 'bool_input', 'choice_input', 'location')
 
 warn("generate a warning")
 
@@ -65,6 +65,88 @@ cmd_button('echo foo',
     resource='api',
     icon_name='cloud_download',
     text='echo some stuff',
+)
+
+# --- Buttons with inputs for form modal testing ---
+
+# Text input only
+cmd_button('greet',
+    argv=['sh', '-c', 'echo "Hello, $NAME! You said: $MESSAGE"'],
+    resource='api',
+    icon_name='waving_hand',
+    text='Greet Someone',
+    inputs=[
+        text_input('NAME', label='Name', placeholder='Enter a name', default='World'),
+        text_input('MESSAGE', label='Message', placeholder='Say something...'),
+    ],
+)
+
+# Bool input only
+cmd_button('deploy-with-flags',
+    argv=['sh', '-c', 'echo "Deploying... dry_run=$DRY_RUN verbose=$VERBOSE"'],
+    resource='api',
+    icon_name='rocket_launch',
+    text='Deploy with Flags',
+    inputs=[
+        bool_input('DRY_RUN', label='Dry Run', default=True, true_string='--dry-run', false_string=''),
+    ],
+)
+
+# Choice input only
+cmd_button('pick-env',
+    argv=['sh', '-c', 'echo "Selected environment: $ENVIRONMENT, region: $REGION"'],
+    resource='api',
+    icon_name='public',
+    text='Select Environment',
+    inputs=[
+        choice_input('ENVIRONMENT', label='Environment', choices=['development', 'staging', 'production']),
+        choice_input('REGION', label='Region', choices=['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1']),
+    ],
+)
+
+# Mixed inputs (text + bool + choice)
+cmd_button('run-migration',
+    argv=['sh', '-c', 'echo "Running migration $MIGRATION_NAME on $TARGET_DB (dry_run=$DRY_RUN)"'],
+    resource='api',
+    icon_name='storage',
+    text='Run DB Migration',
+    inputs=[
+        text_input('MIGRATION_NAME', label='Migration', placeholder='e.g. 001_add_users'),
+        choice_input('TARGET_DB', label='Target Database', choices=['primary', 'replica', 'analytics']),
+    ],
+)
+
+# requiresConfirmation with no inputs
+cmd_button('dangerous-action',
+    argv=['sh', '-c', 'echo "DANGER: Performed the dangerous action!"'],
+    resource='api',
+    icon_name='warning',
+    text='Dangerous Action',
+    requires_confirmation=True,
+)
+
+# requiresConfirmation WITH inputs
+cmd_button('reset-database',
+    argv=['sh', '-c', 'echo "Resetting $DB_NAME database (confirm=$CONFIRM_TEXT)"'],
+    resource='api',
+    icon_name='delete_forever',
+    text='Reset Database',
+    requires_confirmation=True,
+    inputs=[
+        text_input('DB_NAME', label='Database Name', placeholder='Type database name to confirm'),
+        choice_input('RESET_MODE', label='Reset Mode', choices=['soft', 'hard', 'nuclear']),
+    ],
+)
+
+# Nav-level button with inputs
+cmd_button('global-search',
+    argv=['sh', '-c', 'echo "Searching for: $QUERY (case_sensitive=$CASE_SENSITIVE)"'],
+    location=location.NAV,
+    icon_name='search',
+    text='Global Search',
+    inputs=[
+        text_input('QUERY', label='Search Query', placeholder='Enter search term...'),
+    ],
 )
 
 
