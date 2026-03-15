@@ -3,8 +3,9 @@
 import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { createMemo, For } from "solid-js";
-import { useKeyboard } from "@opentui/solid";
 import { useTheme } from "@/hooks/useTheme";
+import { ModalShell } from "./modal/modal-shell";
+import { ModalHeader } from "./modal/modal-header";
 import { keymap } from "../keymap";
 import { formatKeyDisplay, type Mode, type KeyMapping } from "../keyboard/keymap-utils";
 
@@ -23,7 +24,6 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
 
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Group mappings by mode with readable titles
   const groups = createMemo((): HelpGroup[] => {
     const modeConfig: { mode: Mode; title: string }[] = [
       { mode: "app", title: "Global" },
@@ -32,11 +32,9 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
     ];
 
     return modeConfig.map(({ mode, title }) => {
-      // Get all mappings for this mode, excluding duplicates and hidden ones
       const seen = new Set<string>();
       const mappings = keymap.filter((m) => {
         if (!m.modes.includes(mode)) return false;
-        // Skip if we've already seen this command in this mode
         const key = `${m.command}`;
         if (seen.has(key)) return false;
         seen.add(key);
@@ -47,15 +45,14 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
     });
   });
 
-  // Keyboard handling - escape to close, j/k for scrolling
-  useKeyboard((evt) => {
-    if (evt.name === "escape" || evt.name === "?" || evt.name === "q") {
+  function handleKeyboard(evt: { name: string; shift?: boolean; preventDefault: () => void }) {
+    // Additional close keys beyond escape (handled by ModalShell)
+    if (evt.name === "?" || evt.name === "q") {
       evt.preventDefault();
       props.onClose();
       return;
     }
 
-    // Scroll with j/k or arrow keys
     if (evt.name === "j" || evt.name === "down") {
       evt.preventDefault();
       scrollRef?.scrollBy(1);
@@ -67,38 +64,16 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
       scrollRef?.scrollTo(0);
     } else if (evt.name === "g" && evt.shift) {
       evt.preventDefault();
-      scrollRef?.scrollTo(9999); // Scroll to bottom
+      scrollRef?.scrollTo(9999);
     }
-  });
+  }
 
   const maxHeight = 20;
 
   return (
-    <box
-      position="absolute"
-      top={2}
-      left="50%"
-      marginLeft={-30}
-      width={60}
-      backgroundColor={theme.contentPane}
-      border={false}
-      flexDirection="column"
-    >
-      {/* Header */}
-      <box
-        paddingLeft={2}
-        paddingRight={2}
-        paddingTop={1}
-        flexDirection="row"
-        justifyContent="space-between"
-      >
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Keyboard Shortcuts
-        </text>
-        <text fg={theme.textMuted}>j/k scroll · esc/q/?</text>
-      </box>
+    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+      <ModalHeader title="Keyboard Shortcuts" hint="j/k scroll · esc/q/?" />
 
-      {/* Shortcuts list */}
       <scrollbox
         ref={(r: ScrollBoxRenderable) => (scrollRef = r)}
         maxHeight={maxHeight}
@@ -110,25 +85,20 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
         <For each={groups()}>
           {(group, groupIndex) => (
             <>
-              {/* Mode header */}
               <box paddingTop={groupIndex() > 0 ? 1 : 0} paddingLeft={1}>
                 <text fg={theme.accent} attributes={TextAttributes.BOLD}>
                   {group.title}
                 </text>
               </box>
 
-              {/* Mappings in this mode */}
               <For each={group.mappings}>
                 {(mapping) => (
                   <box flexDirection="row" paddingLeft={2} paddingRight={2}>
-                    {/* Key display - fixed width */}
                     <box width={12}>
                       <text fg={theme.primary} attributes={TextAttributes.BOLD}>
                         {formatKeyDisplay(mapping)}
                       </text>
                     </box>
-
-                    {/* Description */}
                     <text fg={theme.text} flexGrow={1}>
                       {mapping.description}
                     </text>
@@ -139,6 +109,6 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
           )}
         </For>
       </scrollbox>
-    </box>
+    </ModalShell>
   );
 }
