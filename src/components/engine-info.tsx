@@ -9,6 +9,13 @@ import { defaultTheme } from "../theme/theme";
 import { useTilt } from "../context/tilt";
 import type { APIFileWatch } from "../tilt/api-types";
 
+const CONTINUATION_PREFIX = "↳ ";
+const CONTINUATION_PREFIX_WIDTH = 2;
+
+// Modal is 80 wide, scrollbox has paddingLeft=1 paddingRight=1,
+// items have paddingLeft=2 paddingRight=2
+const CONTENT_WIDTH = 74;
+
 function fuzzyMatch(needle: string, haystack: string): number | null {
   const needleLower = needle.toLowerCase();
   const haystackLower = haystack.toLowerCase();
@@ -26,10 +33,79 @@ function fuzzyMatch(needle: string, haystack: string): number | null {
   return score;
 }
 
+// Word-aware line wrapping matching log-buffer style
+function wrapText(text: string, maxWidth: number): string[] {
+  if (text.length <= maxWidth) return [text];
+
+  const rows: string[] = [];
+  const continuationWidth = maxWidth - CONTINUATION_PREFIX_WIDTH;
+
+  // First row gets full width
+  const first = wrapAtWord(text, maxWidth);
+  rows.push(first.wrapped);
+  let remaining = first.remaining;
+
+  // Continuation rows get reduced width for ↳ prefix
+  while (remaining.length > 0) {
+    const result = wrapAtWord(remaining, continuationWidth);
+    rows.push(CONTINUATION_PREFIX + result.wrapped);
+    remaining = result.remaining;
+  }
+
+  return rows;
+}
+
+function wrapAtWord(
+  text: string,
+  maxWidth: number,
+): { wrapped: string; remaining: string } {
+  if (text.length <= maxWidth) {
+    return { wrapped: text, remaining: "" };
+  }
+
+  // Find last space or path separator within maxWidth
+  let breakPoint = -1;
+  for (let i = maxWidth - 1; i > 0; i--) {
+    if (text[i] === " " || text[i] === "/") {
+      breakPoint = i;
+      break;
+    }
+  }
+
+  // No good break found, hard wrap
+  if (breakPoint <= 0) {
+    return {
+      wrapped: text.slice(0, maxWidth),
+      remaining: text.slice(maxWidth),
+    };
+  }
+
+  // For space: skip the space. For slash: keep the slash on the first line.
+  if (text[breakPoint] === "/") {
+    return {
+      wrapped: text.slice(0, breakPoint + 1),
+      remaining: text.slice(breakPoint + 1),
+    };
+  }
+
+  return {
+    wrapped: text.slice(0, breakPoint),
+    remaining: text.slice(breakPoint + 1),
+  };
+}
+
 interface WatchPathItem {
   watchName: string;
   path: string;
   kind: "path" | "ignore" | "event";
+}
+
+// A display row links back to its logical item index for selection
+interface DisplayRow {
+  text: string;
+  isContinuation: boolean;
+  itemIndex: number;
+  item: WatchPathItem;
 }
 
 interface EngineInfoProps {
@@ -41,7 +117,7 @@ export function EngineInfo(props: EngineInfoProps) {
   const { client } = useTilt();
 
   const [store, setStore] = createStore({
-    selected: 0,
+    selected: 0, // index into flat items (logical items, not display rows)
     filter: "",
   });
 
@@ -83,7 +159,6 @@ export function EngineInfo(props: EngineInfoProps) {
           items.push({ watchName: fw.metadata.name, path: display, kind: "ignore" });
         }
       }
-      // Show last file event if present
       const events = fw.status.fileEvents;
       if (events && events.length > 0) {
         const last = events[events.length - 1];
@@ -135,7 +210,7 @@ export function EngineInfo(props: EngineInfoProps) {
     return result;
   });
 
-  // Flat list for keyboard navigation
+  // Flat list for keyboard navigation (logical items)
   const flat = createMemo(() => {
     const result: WatchPathItem[] = [];
     for (const [_, items] of grouped()) {
@@ -145,6 +220,36 @@ export function EngineInfo(props: EngineInfoProps) {
   });
 
   const selected = createMemo(() => flat()[store.selected]);
+
+  // Build display rows with wrapping, tracking which logical item each row belongs to
+  const displayRows = createMemo((): DisplayRow[] => {
+    const rows: DisplayRow[] = [];
+    // Build a lookup from item identity to flat index
+    const flatList = flat();
+    const itemToIndex = new Map<WatchPathItem, number>();
+    for (let i = 0; i < flatList.length; i++) {
+      itemToIndex.set(flatList[i], i);
+    }
+
+    for (const [_, groupItems] of grouped()) {
+      for (const item of groupItems) {
+        const prefix = kindPrefix(item.kind);
+        const fullText = prefix + item.path;
+        const wrapped = wrapText(fullText, CONTENT_WIDTH);
+        const idx = itemToIndex.get(item) ?? -1;
+
+        for (let r = 0; r < wrapped.length; r++) {
+          rows.push({
+            text: wrapped[r],
+            isContinuation: r > 0,
+            itemIndex: idx,
+            item,
+          });
+        }
+      }
+    }
+    return rows;
+  });
 
   // Reset selection when filter changes
   createEffect(
@@ -161,16 +266,21 @@ export function EngineInfo(props: EngineInfoProps) {
     if (next >= flat().length) next = 0;
     setStore("selected", next);
 
+    // Scroll to keep the selected item's rows visible
     if (scrollRef) {
-      const itemHeight = 1;
+      const rows = displayRows();
+      // Find the first display row for this item
+      const firstRow = rows.findIndex((r) => r.itemIndex === next);
+      const lastRow = rows.findLastIndex((r) => r.itemIndex === next);
+      if (firstRow === -1) return;
+
       const visibleItems = 16;
       const scrollTop = scrollRef.scrollTop;
-      const itemTop = next * itemHeight;
 
-      if (itemTop < scrollTop) {
-        scrollRef.scrollTo(itemTop);
-      } else if (itemTop >= scrollTop + visibleItems) {
-        scrollRef.scrollTo(itemTop - visibleItems + 1);
+      if (firstRow < scrollTop) {
+        scrollRef.scrollTo(firstRow);
+      } else if (lastRow >= scrollTop + visibleItems) {
+        scrollRef.scrollTo(lastRow - visibleItems + 1);
       }
     }
   }
@@ -213,9 +323,10 @@ export function EngineInfo(props: EngineInfoProps) {
     }
   }
 
-  function kindColor(kind: WatchPathItem["kind"], isSelected: boolean): string {
+  function rowColor(row: DisplayRow, isSelected: boolean): string {
     if (isSelected) return theme.background;
-    switch (kind) {
+    if (row.isContinuation) return theme.textMuted;
+    switch (row.item.kind) {
       case "path":
         return theme.text;
       case "ignore":
@@ -296,7 +407,7 @@ export function EngineInfo(props: EngineInfoProps) {
               paddingBottom={1}
             >
               <For each={grouped()}>
-                {([name, groupItems], groupIndex) => (
+                {([name, _groupItems], groupIndex) => (
                   <>
                     {/* Group header: FileWatch name */}
                     <box paddingTop={groupIndex() > 0 ? 1 : 0} paddingLeft={1}>
@@ -305,11 +416,11 @@ export function EngineInfo(props: EngineInfoProps) {
                       </text>
                     </box>
 
-                    {/* Items in group */}
-                    <For each={groupItems}>
-                      {(item) => {
+                    {/* Display rows for items in this group */}
+                    <For each={displayRows().filter((r) => r.item.watchName === name)}>
+                      {(row) => {
                         const isSelected = () =>
-                          item === selected();
+                          row.itemIndex === store.selected;
 
                         return (
                           <box
@@ -319,27 +430,17 @@ export function EngineInfo(props: EngineInfoProps) {
                             }
                             paddingLeft={2}
                             paddingRight={2}
-                            gap={1}
                           >
-                            <Show when={item.kind !== "path"}>
-                              <text
-                                fg={
-                                  isSelected()
-                                    ? theme.background
-                                    : theme.textMuted
-                                }
-                                attributes={TextAttributes.DIM}
-                              >
-                                {kindPrefix(item.kind)}
-                              </text>
-                            </Show>
                             <text
                               flexGrow={1}
-                              fg={kindColor(item.kind, isSelected())}
+                              fg={rowColor(row, isSelected())}
+                              attributes={
+                                row.isContinuation ? TextAttributes.DIM : undefined
+                              }
                               wrapMode="none"
                               overflow="hidden"
                             >
-                              {item.path}
+                              {row.text}
                             </text>
                           </box>
                         );

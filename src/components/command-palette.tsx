@@ -43,7 +43,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette(props: CommandPaletteProps) {
   const theme = defaultTheme;
-  const { state: tiltState, triggerResource, client } = useTilt();
+  const { state: tiltState, client } = useTilt();
   const { state: focusState } = useFocus();
 
   const [store, setStore] = createStore({
@@ -91,6 +91,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 
     // Group 3: Commands for app (static)
     const appBindings = getHelpMappingsForMode("app").concat({
+      modes: ["app"],
       description: "exit",
       key: "x",
       command: "app.quit",
@@ -291,7 +292,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
         <input
           ref={(r) => (inputRef = r)}
-          onContentChange={(e) => {
+          onContentChange={() => {
             if (inputRef?.value === "") {
               setStore("filter", "");
             }
