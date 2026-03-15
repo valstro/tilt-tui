@@ -1,11 +1,13 @@
 // Engine Info modal - shows FileWatch state from the Tilt engine API
 
 import { TextAttributes } from "@opentui/core";
-import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
+import type { ScrollBoxRenderable } from "@opentui/core";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore } from "solid-js/store";
-import { useKeyboard } from "@opentui/solid";
 import { useTheme } from "@/hooks/useTheme";
+import { ModalShell } from "./modal/modal-shell";
+import { ModalHeader } from "./modal/modal-header";
+import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
 import type { APIFileWatch } from "../tilt/api-types";
 import { fuzzyMatch } from "@/utils/fuzzy";
@@ -17,19 +19,16 @@ const CONTINUATION_PREFIX_WIDTH = 2;
 // items have paddingLeft=2 paddingRight=2
 const CONTENT_WIDTH = 74;
 
-// Word-aware line wrapping matching log-buffer style
 function wrapText(text: string, maxWidth: number): string[] {
   if (text.length <= maxWidth) return [text];
 
   const rows: string[] = [];
   const continuationWidth = maxWidth - CONTINUATION_PREFIX_WIDTH;
 
-  // First row gets full width
   const first = wrapAtWord(text, maxWidth);
   rows.push(first.wrapped);
   let remaining = first.remaining;
 
-  // Continuation rows get reduced width for ↳ prefix
   while (remaining.length > 0) {
     const result = wrapAtWord(remaining, continuationWidth);
     rows.push(CONTINUATION_PREFIX + result.wrapped);
@@ -47,7 +46,6 @@ function wrapAtWord(
     return { wrapped: text, remaining: "" };
   }
 
-  // Find last space or path separator within maxWidth
   let breakPoint = -1;
   for (let i = maxWidth - 1; i > 0; i--) {
     if (text[i] === " " || text[i] === "/") {
@@ -56,7 +54,6 @@ function wrapAtWord(
     }
   }
 
-  // No good break found, hard wrap
   if (breakPoint <= 0) {
     return {
       wrapped: text.slice(0, maxWidth),
@@ -64,7 +61,6 @@ function wrapAtWord(
     };
   }
 
-  // For space: skip the space. For slash: keep the slash on the first line.
   if (text[breakPoint] === "/") {
     return {
       wrapped: text.slice(0, breakPoint + 1),
@@ -84,7 +80,6 @@ interface WatchPathItem {
   kind: "path" | "ignore" | "event";
 }
 
-// A display row links back to its logical item index for selection
 interface DisplayRow {
   text: string;
   isContinuation: boolean;
@@ -100,8 +95,9 @@ export function EngineInfo(props: EngineInfoProps) {
   const theme = useTheme();
   const { client } = useTilt();
 
+  // Custom store because EngineInfo has multi-row scroll logic
   const [store, setStore] = createStore({
-    selected: 0, // index into flat items (logical items, not display rows)
+    selected: 0,
     filter: "",
   });
 
@@ -109,10 +105,8 @@ export function EngineInfo(props: EngineInfoProps) {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
-  let inputRef: InputRenderable | undefined;
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Fetch file watches on mount
   createEffect(() => {
     client
       .getFileWatches()
@@ -126,7 +120,6 @@ export function EngineInfo(props: EngineInfoProps) {
       });
   });
 
-  // Build flat items from file watches, grouped by watch name
   const allItems = createMemo((): WatchPathItem[] => {
     const items: WatchPathItem[] = [];
     const watches = [...fileWatches()].sort((a, b) =>
@@ -160,7 +153,6 @@ export function EngineInfo(props: EngineInfoProps) {
     return items;
   });
 
-  // Filter items with fuzzy matching
   const filtered = createMemo(() => {
     const needle = store.filter;
     if (!needle) return allItems();
@@ -171,7 +163,6 @@ export function EngineInfo(props: EngineInfoProps) {
     });
   });
 
-  // Group filtered items by watch name, preserving sort order
   const grouped = createMemo(() => {
     const groups = new Map<string, WatchPathItem[]>();
     const groupOrder: string[] = [];
@@ -194,7 +185,6 @@ export function EngineInfo(props: EngineInfoProps) {
     return result;
   });
 
-  // Flat list for keyboard navigation (logical items)
   const flat = createMemo(() => {
     const result: WatchPathItem[] = [];
     for (const [_, items] of grouped()) {
@@ -205,10 +195,8 @@ export function EngineInfo(props: EngineInfoProps) {
 
   const selected = createMemo(() => flat()[store.selected]);
 
-  // Build display rows with wrapping, tracking which logical item each row belongs to
   const displayRows = createMemo((): DisplayRow[] => {
     const rows: DisplayRow[] = [];
-    // Build a lookup from item identity to flat index
     const flatList = flat();
     const itemToIndex = new Map<WatchPathItem, number>();
     for (let i = 0; i < flatList.length; i++) {
@@ -235,7 +223,6 @@ export function EngineInfo(props: EngineInfoProps) {
     return rows;
   });
 
-  // Reset selection when filter changes
   createEffect(
     on(
       () => store.filter,
@@ -243,6 +230,7 @@ export function EngineInfo(props: EngineInfoProps) {
     ),
   );
 
+  // Custom move() needed for multi-row item scroll tracking
   function move(direction: number) {
     if (flat().length === 0) return;
     let next = store.selected + direction;
@@ -250,10 +238,8 @@ export function EngineInfo(props: EngineInfoProps) {
     if (next >= flat().length) next = 0;
     setStore("selected", next);
 
-    // Scroll to keep the selected item's rows visible
     if (scrollRef) {
       const rows = displayRows();
-      // Find the first display row for this item
       const firstRow = rows.findIndex((r) => r.itemIndex === next);
       const lastRow = rows.findLastIndex((r) => r.itemIndex === next);
       if (firstRow === -1) return;
@@ -269,13 +255,7 @@ export function EngineInfo(props: EngineInfoProps) {
     }
   }
 
-  useKeyboard((evt) => {
-    if (evt.name === "escape") {
-      evt.preventDefault();
-      props.onClose();
-      return;
-    }
-
+  function handleKeyboard(evt: { name: string; ctrl?: boolean; preventDefault: () => void }) {
     if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
       move(-1);
@@ -287,12 +267,7 @@ export function EngineInfo(props: EngineInfoProps) {
       move(1);
       return;
     }
-  });
-
-  // Focus input on mount
-  createEffect(() => {
-    setTimeout(() => inputRef?.focus(), 10);
-  });
+  }
 
   const maxHeight = 24;
 
@@ -321,50 +296,14 @@ export function EngineInfo(props: EngineInfoProps) {
   }
 
   return (
-    <box
-      position="absolute"
-      top={2}
-      left="50%"
-      marginLeft={-40}
-      width={80}
-      backgroundColor={theme.contentPane}
-      border={false}
-      flexDirection="column"
-    >
-      {/* Header */}
-      <box
-        paddingLeft={2}
-        paddingRight={2}
-        paddingTop={1}
-        flexDirection="row"
-        justifyContent="space-between"
-      >
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Engine Info — File Watches
-        </text>
-        <text fg={theme.textMuted}>esc</text>
-      </box>
+    <ModalShell size="lg" onClose={props.onClose} onKeyboard={handleKeyboard}>
+      <ModalHeader title="Engine Info — File Watches" />
 
-      {/* Filter input */}
-      <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-        <input
-          ref={(r) => (inputRef = r)}
-          onContentChange={() => {
-            if (inputRef?.value === "") {
-              setStore("filter", "");
-            }
-          }}
-          onInput={(e) => {
-            setStore("filter", e);
-          }}
-          focusedBackgroundColor={theme.background}
-          cursorColor={theme.primary}
-          focusedTextColor={theme.text}
-          placeholder="Type to filter paths..."
-        />
-      </box>
+      <ModalFilterInput
+        onInput={(v) => setStore("filter", v)}
+        placeholder="Type to filter paths..."
+      />
 
-      {/* Content */}
       <Show when={!loading()} fallback={
         <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
           <text fg={theme.textMuted}>Loading file watches...</text>
@@ -393,14 +332,12 @@ export function EngineInfo(props: EngineInfoProps) {
               <For each={grouped()}>
                 {([name, _groupItems], groupIndex) => (
                   <>
-                    {/* Group header: FileWatch name */}
                     <box paddingTop={groupIndex() > 0 ? 1 : 0} paddingLeft={1}>
                       <text fg={theme.accent} attributes={TextAttributes.BOLD}>
                         {name}
                       </text>
                     </box>
 
-                    {/* Display rows for items in this group */}
                     <For each={displayRows().filter((r) => r.item.watchName === name)}>
                       {(row) => {
                         const isSelected = () =>
@@ -437,6 +374,6 @@ export function EngineInfo(props: EngineInfoProps) {
           </Show>
         </Show>
       </Show>
-    </box>
+    </ModalShell>
   );
 }
