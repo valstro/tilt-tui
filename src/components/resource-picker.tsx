@@ -1,11 +1,13 @@
 // Resource Picker component - modal dialog for quick resource selection with fuzzy search
 
 import { TextAttributes } from "@opentui/core";
-import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
-import { createEffect, createMemo, For, on, Show } from "solid-js";
-import { createStore } from "solid-js/store";
-import { useKeyboard } from "@opentui/solid";
+import type { ScrollBoxRenderable } from "@opentui/core";
+import { createMemo, For, Show } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
+import { useListNavigation } from "@/hooks/useListNavigation";
+import { ModalShell } from "./modal/modal-shell";
+import { ModalHeader } from "./modal/modal-header";
+import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { type Resource } from "../tilt/types";
@@ -30,17 +32,10 @@ export function ResourcePicker(props: ResourcePickerProps) {
   const { setActivePane } = useFocus();
   const { getBlinkingColor } = useBlinkWhenBuilding({ theme });
 
-  const [store, setStore] = createStore({
-    selected: 0,
-    filter: "",
-  });
-
-  let inputRef: InputRenderable | undefined;
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Build options with fuzzy matching - uses ALL resources (ignores status filter)
   const options = createMemo(() => {
-    const needle = store.filter;
+    const needle = nav.filter();
     return state.resources
       .map((r) => ({
         resource: r,
@@ -51,7 +46,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
       .sort((a, b) => a.score - b.score);
   });
 
-  // Group options by resource group
   const grouped = createMemo(() => {
     const groups = new Map<string, PickerOption[]>();
     const groupOrder: string[] = [];
@@ -64,14 +58,12 @@ export function ResourcePicker(props: ResourcePickerProps) {
       groups.get(opt.group)!.push(opt);
     }
 
-    // Sort groups (ungrouped at end)
     groupOrder.sort((a, b) => {
       if (a === "ungrouped") return 1;
       if (b === "ungrouped") return -1;
       return a.localeCompare(b);
     });
 
-    // Return in sorted order
     const result: [string, PickerOption[]][] = [];
     for (const group of groupOrder) {
       const opts = groups.get(group);
@@ -82,7 +74,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
     return result;
   });
 
-  // Flat list for navigation
   const flat = createMemo(() => {
     const result: PickerOption[] = [];
     for (const [_, opts] of grouped()) {
@@ -91,80 +82,40 @@ export function ResourcePicker(props: ResourcePickerProps) {
     return result;
   });
 
-  // Currently selected option
-  const selected = createMemo(() => flat()[store.selected]);
+  const nav = useListNavigation({
+    itemCount: () => flat().length,
+    scrollRef: () => scrollRef,
+  });
 
-  // Reset selection when filter changes
-  createEffect(
-    on(
-      () => store.filter,
-      () => {
-        setStore("selected", 0);
-      },
-    ),
-  );
+  const selected = createMemo(() => flat()[nav.selected()]);
 
-  // Navigation functions
-  function move(direction: number) {
-    if (flat().length === 0) return;
-    let next = store.selected + direction;
-    if (next < 0) next = flat().length - 1;
-    if (next >= flat().length) next = 0;
-    setStore("selected", next);
-
-    // Scroll to keep selected item visible
-    if (scrollRef) {
-      const itemHeight = 1;
-      const visibleItems = 10;
-      const scrollTop = scrollRef.scrollTop;
-      const itemTop = next * itemHeight;
-
-      if (itemTop < scrollTop) {
-        scrollRef.scrollTo(itemTop);
-      } else if (itemTop >= scrollTop + visibleItems) {
-        scrollRef.scrollTo(itemTop - visibleItems + 1);
-      }
-    }
-  }
-
-  // Handle selection
   function handleSelect() {
     const opt = selected();
     if (!opt) return;
 
-    // Check if resource is visible with current filter
     const effectiveStatus = getEffectiveStatus(opt.resource);
     if (
       state.statusFilter !== "all" &&
       effectiveStatus !== state.statusFilter
     ) {
-      // Reset filter so resource becomes visible
       resetStatusFilter();
     }
 
-    // Select the resource and switch to resource pane
     selectResource(opt.resource.name);
     setActivePane("resource");
     props.onClose();
   }
 
-  // Keyboard handling
-  useKeyboard((evt) => {
-    if (evt.name === "escape") {
-      evt.preventDefault();
-      props.onClose();
-      return;
-    }
-
+  function handleKeyboard(evt: { name: string; ctrl?: boolean; preventDefault: () => void }) {
     if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
-      move(-1);
+      nav.move(-1);
       return;
     }
 
     if (evt.name === "down" || (evt.ctrl && evt.name === "j")) {
       evt.preventDefault();
-      move(1);
+      nav.move(1);
       return;
     }
 
@@ -173,60 +124,19 @@ export function ResourcePicker(props: ResourcePickerProps) {
       handleSelect();
       return;
     }
-  });
-
-  // Focus input on mount
-  createEffect(() => {
-    setTimeout(() => inputRef?.focus(), 10);
-  });
+  }
 
   const maxHeight = 20;
 
   return (
-    <box
-      position="absolute"
-      top={2}
-      left="50%"
-      marginLeft={-30}
-      width={60}
-      backgroundColor={theme.contentPane}
-      border={false}
-      flexDirection="column"
-    >
-      {/* Header with title */}
-      <box
-        paddingLeft={2}
-        paddingRight={2}
-        paddingTop={1}
-        flexDirection="row"
-        justifyContent="space-between"
-      >
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Resources
-        </text>
-        <text fg={theme.textMuted}>esc</text>
-      </box>
+    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+      <ModalHeader title="Resources" />
 
-      {/* Filter input */}
-      <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-        <input
-          ref={(r) => (inputRef = r)}
-          onContentChange={(e) => {
-            if (inputRef?.value === "") {
-              setStore("filter", "");
-            }
-          }}
-          onInput={(e) => {
-            setStore("filter", e);
-          }}
-          focusedBackgroundColor={theme.background}
-          cursorColor={theme.primary}
-          focusedTextColor={theme.text}
-          placeholder="Type to filter..."
-        />
-      </box>
+      <ModalFilterInput
+        onInput={(v) => nav.setFilter(v)}
+        placeholder="Type to filter..."
+      />
 
-      {/* Options list */}
       <Show
         when={grouped().length > 0}
         fallback={
@@ -245,17 +155,14 @@ export function ResourcePicker(props: ResourcePickerProps) {
           <For each={grouped()}>
             {([group, groupOptions], groupIndex) => (
               <>
-                {/* Group header */}
                 <box paddingTop={groupIndex() > 0 ? 1 : 0} paddingLeft={1}>
                   <text fg={theme.accent} attributes={TextAttributes.BOLD}>
                     {group}
                   </text>
                 </box>
 
-                {/* Options in group */}
                 <For each={groupOptions}>
                   {(option) => {
-                    // Plain accessors instead of createMemo - avoids memo creation per item
                     const isSelected = () =>
                       option.resource.name === selected()?.resource.name;
                     const status = () => getEffectiveStatus(option.resource);
@@ -278,10 +185,7 @@ export function ResourcePicker(props: ResourcePickerProps) {
                         paddingRight={2}
                         gap={1}
                       >
-                        {/* Status indicator dot */}
                         <text fg={dotColor()}>{"\u25CF"}</text>
-
-                        {/* Resource name */}
                         <text
                           flexGrow={1}
                           fg={isSelected() ? theme.background : theme.text}
@@ -302,6 +206,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
           </For>
         </scrollbox>
       </Show>
-    </box>
+    </ModalShell>
   );
 }
