@@ -1,12 +1,13 @@
 // Command Palette component - filterable command list with grouping
-// Adapted from OpenCode's dialog-select.tsx
 
 import { TextAttributes } from "@opentui/core";
-import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
-import { createEffect, createMemo, For, on, Show, untrack } from "solid-js";
-import { createStore } from "solid-js/store";
-import { useKeyboard } from "@opentui/solid";
+import type { ScrollBoxRenderable } from "@opentui/core";
+import { createMemo, For, Show, untrack } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
+import { useListNavigation } from "@/hooks/useListNavigation";
+import { ModalShell } from "./modal/modal-shell";
+import { ModalHeader } from "./modal/modal-header";
+import { ModalFilterInput } from "./modal/modal-filter-input";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import {
@@ -24,11 +25,9 @@ export interface PaletteOption {
   category: string;
   command?: Command;
   url?: string;
-  /** Raw APIButton for API calls */
   button?: APIButton;
 }
 
-// Whether a button has inputs that need user interaction (not just hidden)
 function hasVisibleInputs(button: APIButton): boolean {
   return (button.spec.inputs ?? []).some(
     (input: APIInputSpec) => input.text || input.bool || input.choice,
@@ -46,23 +45,15 @@ export function CommandPalette(props: CommandPaletteProps) {
   const { state: tiltState, client } = useTilt();
   const { state: focusState } = useFocus();
 
-  const [store, setStore] = createStore({
-    selected: 0,
-    filter: "",
-  });
-
-  let inputRef: InputRenderable | undefined;
   let scrollRef: ScrollBoxRenderable | undefined;
 
   // Capture options once on mount using untrack to avoid reactive dependencies
-  // This ensures the palette content is stable while open
   const initialOptions = untrack(() => {
     const result: PaletteOption[] = [];
     const selectedResource = tiltState.resources.find(
       (r) => r.name === tiltState.selectedResource,
     );
 
-    // Group 1: Links from selected resource
     if (selectedResource) {
       for (const endpoint of selectedResource.endpoints) {
         const hasName = endpoint.name && endpoint.name !== endpoint.url;
@@ -75,7 +66,6 @@ export function CommandPalette(props: CommandPaletteProps) {
         });
       }
 
-      // Group 2: UIButton actions from selected resource
       for (const button of selectedResource.buttons) {
         if (!button.disabled) {
           result.push({
@@ -89,7 +79,6 @@ export function CommandPalette(props: CommandPaletteProps) {
       }
     }
 
-    // Group 3: Commands for app (static)
     const appBindings = getHelpMappingsForMode("app").concat({
       modes: ["app"],
       description: "exit",
@@ -111,12 +100,10 @@ export function CommandPalette(props: CommandPaletteProps) {
     return result;
   });
 
-  // Options returns the stable initial options
   const options = () => initialOptions;
 
-  // Filter options based on search
   const filtered = createMemo(() => {
-    const needle = store.filter.toLowerCase();
+    const needle = nav.filter().toLowerCase();
     if (!needle) return options();
 
     return options().filter(
@@ -127,7 +114,6 @@ export function CommandPalette(props: CommandPaletteProps) {
     );
   });
 
-  // Group filtered options by category
   const grouped = createMemo(() => {
     const groups = new Map<string, PaletteOption[]>();
     const categoryOrder = ["Links", "Actions", "Commands"];
@@ -138,7 +124,6 @@ export function CommandPalette(props: CommandPaletteProps) {
       groups.set(opt.category, existing);
     }
 
-    // Return in defined order
     const result: [string, PaletteOption[]][] = [];
     for (const cat of categoryOrder) {
       const opts = groups.get(cat);
@@ -149,7 +134,6 @@ export function CommandPalette(props: CommandPaletteProps) {
     return result;
   });
 
-  // Flat list for navigation
   const flat = createMemo(() => {
     const result: PaletteOption[] = [];
     for (const [_, opts] of grouped()) {
@@ -158,49 +142,18 @@ export function CommandPalette(props: CommandPaletteProps) {
     return result;
   });
 
-  // Currently selected option
-  const selected = createMemo(() => flat()[store.selected]);
+  const nav = useListNavigation({
+    itemCount: () => flat().length,
+    scrollRef: () => scrollRef,
+  });
 
-  // Reset selection when filter changes
-  createEffect(
-    on(
-      () => store.filter,
-      () => {
-        setStore("selected", 0);
-      },
-    ),
-  );
+  const selected = createMemo(() => flat()[nav.selected()]);
 
-  // Navigation functions
-  function move(direction: number) {
-    if (flat().length === 0) return;
-    let next = store.selected + direction;
-    if (next < 0) next = flat().length - 1;
-    if (next >= flat().length) next = 0;
-    setStore("selected", next);
-
-    // Scroll to keep selected item visible
-    if (scrollRef) {
-      const itemHeight = 1; // Approximate height per item
-      const visibleItems = 10;
-      const scrollTop = scrollRef.scrollTop;
-      const itemTop = next * itemHeight;
-
-      if (itemTop < scrollTop) {
-        scrollRef.scrollTo(itemTop);
-      } else if (itemTop >= scrollTop + visibleItems) {
-        scrollRef.scrollTo(itemTop - visibleItems + 1);
-      }
-    }
-  }
-
-  // Handle selection
   async function handleSelect() {
     const opt = selected();
     if (!opt) return;
 
     if (opt.url) {
-      // Open URL in default browser
       client.openUrl(opt.url);
       props.onClose();
     } else if (opt.button) {
@@ -209,11 +162,9 @@ export function CommandPalette(props: CommandPaletteProps) {
         opt.button.spec.requiresConfirmation && !needsForm;
 
       if (needsForm || needsConfirmation) {
-        // Close palette and hand off to form modal
         props.onClose();
         props.onButtonForm(opt.button);
       } else {
-        // No visible inputs, no confirmation -- click immediately
         try {
           const updatedButton = await client.clickButton(opt.button);
           opt.button = updatedButton;
@@ -223,29 +174,21 @@ export function CommandPalette(props: CommandPaletteProps) {
         props.onClose();
       }
     } else if (opt.command) {
-      // Execute command
       props.onSelect(opt);
       props.onClose();
     }
   }
 
-  // Keyboard handling
-  useKeyboard((evt) => {
-    if (evt.name === "escape") {
-      evt.preventDefault();
-      props.onClose();
-      return;
-    }
-
+  function handleKeyboard(evt: { name: string; ctrl?: boolean; preventDefault: () => void }) {
     if (evt.name === "up" || (evt.ctrl && evt.name === "k")) {
       evt.preventDefault();
-      move(-1);
+      nav.move(-1);
       return;
     }
 
     if (evt.name === "down" || (evt.ctrl && evt.name === "j")) {
       evt.preventDefault();
-      move(1);
+      nav.move(1);
       return;
     }
 
@@ -254,60 +197,19 @@ export function CommandPalette(props: CommandPaletteProps) {
       handleSelect();
       return;
     }
-  });
-
-  // Focus input on mount
-  createEffect(() => {
-    setTimeout(() => inputRef?.focus(), 10);
-  });
+  }
 
   const maxHeight = 20;
 
   return (
-    <box
-      position="absolute"
-      top={2}
-      left="50%"
-      marginLeft={-30}
-      width={60}
-      backgroundColor={theme.contentPane}
-      border={false}
-      flexDirection="column"
-    >
-      {/* Header with title */}
-      <box
-        paddingLeft={2}
-        paddingRight={2}
-        paddingTop={1}
-        flexDirection="row"
-        justifyContent="space-between"
-      >
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Commands
-        </text>
-        <text fg={theme.textMuted}>esc</text>
-      </box>
+    <ModalShell size="md" onClose={props.onClose} onKeyboard={handleKeyboard}>
+      <ModalHeader title="Commands" />
 
-      {/* Filter input */}
-      <box paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-        <input
-          ref={(r) => (inputRef = r)}
-          onContentChange={() => {
-            if (inputRef?.value === "") {
-              setStore("filter", "");
-            }
-          }}
-          onInput={(e) => {
-            setStore("filter", e);
-          }}
-          focusedBackgroundColor={theme.background}
-          cursorColor={theme.primary}
-          focusedTextColor={theme.text}
-          placeholder="Type to filter..."
-        />
-      </box>
+      <ModalFilterInput
+        onInput={(v) => nav.setFilter(v)}
+        placeholder="Type to filter..."
+      />
 
-      {/* Options list */}
       <Show
         when={grouped().length > 0}
         fallback={
@@ -326,14 +228,12 @@ export function CommandPalette(props: CommandPaletteProps) {
           <For each={grouped()}>
             {([category, categoryOptions], groupIndex) => (
               <>
-                {/* Category header */}
                 <box paddingTop={groupIndex() > 0 ? 1 : 0} paddingLeft={1}>
                   <text fg={theme.accent} attributes={TextAttributes.BOLD}>
                     {category}
                   </text>
                 </box>
 
-                {/* Options in category */}
                 <For each={categoryOptions}>
                   {(option) => {
                     const isSelected = () => option.value === selected()?.value;
@@ -381,6 +281,6 @@ export function CommandPalette(props: CommandPaletteProps) {
           </For>
         </scrollbox>
       </Show>
-    </box>
+    </ModalShell>
   );
 }
