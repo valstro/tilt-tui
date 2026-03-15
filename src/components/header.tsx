@@ -1,11 +1,11 @@
 import { createMemo, For, Show, createSignal, createEffect } from "solid-js";
 import { useTilt } from "../context/tilt";
 import {
-  defaultTheme,
   connectionStatusIcon,
   connectionStatusColor,
   connectionStatusText,
 } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { ResourceStatus, type Resource } from "../tilt/types";
 import { getEffectiveStatus } from "@/tilt/status-utils";
 import { StatusCounts } from "./status-counts";
@@ -40,7 +40,7 @@ interface HeaderProps {
 
 export function Header(props: HeaderProps) {
   const { state, client } = useTilt();
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   const isNarrow = () => props.narrow ?? false;
 

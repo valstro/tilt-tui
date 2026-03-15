@@ -6,7 +6,7 @@ import type { InputRenderable } from "@opentui/core";
 import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import type { APIButton } from "../tilt/api-types";
 import type { APIInputSpec } from "../tilt/api-types";
 
@@ -38,7 +38,7 @@ function getDefaultValue(spec: APIInputSpec): string | boolean {
 }
 
 export function ButtonFormModal(props: ButtonFormModalProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
   const allInputs = () => props.button.spec.inputs ?? [];
   const visibleInputs = createMemo(() => allInputs().filter(isVisibleInput));
   const isConfirmationOnly = createMemo(

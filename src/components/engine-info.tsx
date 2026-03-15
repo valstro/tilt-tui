@@ -5,7 +5,7 @@ import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { useTilt } from "../context/tilt";
 import type { APIFileWatch } from "../tilt/api-types";
 import { fuzzyMatch } from "@/utils/fuzzy";
@@ -97,7 +97,7 @@ interface EngineInfoProps {
 }
 
 export function EngineInfo(props: EngineInfoProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
   const { client } = useTilt();
 
   const [store, setStore] = createStore({

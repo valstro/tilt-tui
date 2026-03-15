@@ -4,12 +4,12 @@
 import { createMemo, For } from "solid-js";
 import { useTerminalDimensions } from "@opentui/solid";
 import { useFocus } from "../context/focus";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { getHelpItemsForMode } from "../keyboard/keymap-utils";
 
 export function Footer() {
   const { state, sidebarVisible } = useFocus();
-  const theme = defaultTheme;
+  const theme = useTheme();
   const dimensions = useTerminalDimensions();
 
   // Calculate approximate ResourceView width

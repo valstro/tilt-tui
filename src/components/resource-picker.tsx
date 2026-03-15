@@ -5,7 +5,7 @@ import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
 import { createEffect, createMemo, For, on, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { type Resource } from "../tilt/types";
@@ -25,7 +25,7 @@ interface ResourcePickerProps {
 }
 
 export function ResourcePicker(props: ResourcePickerProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
   const { state, selectResource, resetStatusFilter } = useTilt();
   const { setActivePane } = useFocus();
   const { getBlinkingColor } = useBlinkWhenBuilding({ theme });

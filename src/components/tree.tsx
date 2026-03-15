@@ -16,13 +16,13 @@ import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { useKeyHandler } from "../keyboard/useKeyHandler";
 import {
-  defaultTheme,
   type Theme,
   statusColor,
   formatRelativeTime,
   formatBuildDuration,
   focusBorder,
 } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
 import { type Resource, ResourceStatus } from "../tilt/types";
@@ -143,7 +143,7 @@ export function Tree() {
     toggleShowDisabledResources,
   } = useTilt();
   const { state: focusState, setActivePane } = useFocus();
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   const [cursor, setCursor] = createSignal(0);
   const isSelected = createSelector(cursor);

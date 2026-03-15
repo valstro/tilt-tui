@@ -5,7 +5,7 @@ import { TextAttributes } from "@opentui/core";
 import type { InputRenderable } from "@opentui/core";
 import { createEffect, createSignal } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import type { LogSearchFilter } from "./log-buffer";
 import { parseSearchQuery } from "../utils/log-search-utils";
 
@@ -16,7 +16,7 @@ interface LogSearchModalProps {
 }
 
 export function LogSearchModal(props: LogSearchModalProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
   const [query, setQuery] = createSignal(props.initialQuery ?? "");
   const [error, setError] = createSignal<string | null>(null);
 

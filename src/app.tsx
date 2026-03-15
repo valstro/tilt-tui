@@ -15,7 +15,7 @@ import { ResourcePicker } from "./components/resource-picker";
 import { KeyboardHelp } from "./components/keyboard-help";
 import { ButtonFormModal } from "./components/button-form-modal";
 import { EngineInfo } from "./components/engine-info";
-import { defaultTheme } from "./theme/theme";
+import { useTheme } from "./hooks/useTheme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
 import { KeyEvent } from "@opentui/core";
@@ -44,7 +44,7 @@ function AppContent() {
     isModalOpen,
   } = useFocus();
   const { client } = useTilt();
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   // Button being configured in the form modal
   const [formButton, setFormButton] = createSignal<APIButton | null>(null);

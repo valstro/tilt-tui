@@ -6,7 +6,8 @@ import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { useKeyHandler } from "../keyboard/useKeyHandler";
 import { Commands } from "../commands";
-import { defaultTheme, focusBorder } from "../theme/theme";
+import { focusBorder } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
 import { LogBufferView, type LogBufferViewRef } from "./log-buffer-view";
@@ -25,7 +26,7 @@ export function ResourceView() {
     activeLogFilterNames,
   } = useTilt();
   const { state: focusState, activeModal, openModal, closeModal } = useFocus();
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   // Local state
   const [autoScroll, setAutoScroll] = createSignal(true);

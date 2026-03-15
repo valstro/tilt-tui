@@ -6,7 +6,7 @@ import type { ScrollBoxRenderable, InputRenderable } from "@opentui/core";
 import { createEffect, createMemo, For, on, Show, untrack } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import {
@@ -42,7 +42,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette(props: CommandPaletteProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
   const { state: tiltState, client } = useTilt();
   const { state: focusState } = useFocus();
 

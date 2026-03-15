@@ -1,7 +1,7 @@
 // PaneHeader component - consistent header for panes
 
 import { type JSX } from "solid-js";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 
 interface PaneHeaderProps {
   title: string;
@@ -10,7 +10,7 @@ interface PaneHeaderProps {
 }
 
 export function PaneHeader(props: PaneHeaderProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   console.log("COLOR", props.color);
 

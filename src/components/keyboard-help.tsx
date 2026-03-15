@@ -4,7 +4,7 @@ import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { createMemo, For } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { defaultTheme } from "../theme/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { keymap } from "../keymap";
 import { formatKeyDisplay, type Mode, type KeyMapping } from "../keyboard/keymap-utils";
 
@@ -19,7 +19,7 @@ interface HelpGroup {
 }
 
 export function KeyboardHelp(props: KeyboardHelpProps) {
-  const theme = defaultTheme;
+  const theme = useTheme();
 
   let scrollRef: ScrollBoxRenderable | undefined;
 
