@@ -8,6 +8,7 @@ import { useKeyboard } from "@opentui/solid";
 import { defaultTheme } from "../theme/theme";
 import { useTilt } from "../context/tilt";
 import type { APIFileWatch } from "../tilt/api-types";
+import { fuzzyMatch } from "@/utils/fuzzy";
 
 const CONTINUATION_PREFIX = "↳ ";
 const CONTINUATION_PREFIX_WIDTH = 2;
@@ -15,23 +16,6 @@ const CONTINUATION_PREFIX_WIDTH = 2;
 // Modal is 80 wide, scrollbox has paddingLeft=1 paddingRight=1,
 // items have paddingLeft=2 paddingRight=2
 const CONTENT_WIDTH = 74;
-
-function fuzzyMatch(needle: string, haystack: string): number | null {
-  const needleLower = needle.toLowerCase();
-  const haystackLower = haystack.toLowerCase();
-
-  let score = 0;
-  let haystackIdx = 0;
-
-  for (const char of needleLower) {
-    const foundIdx = haystackLower.indexOf(char, haystackIdx);
-    if (foundIdx === -1) return null;
-    score += foundIdx - haystackIdx;
-    haystackIdx = foundIdx + 1;
-  }
-
-  return score;
-}
 
 // Word-aware line wrapping matching log-buffer style
 function wrapText(text: string, maxWidth: number): string[] {
