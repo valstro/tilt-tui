@@ -43,7 +43,7 @@ function AppContent() {
     closeModal,
     isModalOpen,
   } = useFocus();
-  const { client } = useTilt();
+  const { client, state, triggerResource } = useTilt();
   const theme = useTheme();
 
   // Button being configured in the form modal
@@ -55,7 +55,6 @@ function AppContent() {
       case Commands.APP_QUIT:
         renderer.destroy();
         process.exit(0);
-        break;
       case Commands.SIDEBAR_TOGGLE:
         toggleSidebar();
         break;
@@ -74,6 +73,11 @@ function AppContent() {
         break;
       case Commands.ENGINE_INFO_OPEN:
         openModal("engineInfo");
+        break;
+      case Commands.RELOAD_RESOURCE:
+        if (state.selectedResource) {
+          triggerResource(state.selectedResource);
+        }
         break;
     }
   }

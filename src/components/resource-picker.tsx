@@ -41,7 +41,14 @@ export function ResourcePicker(props: ResourcePickerProps) {
 
   const options = createMemo(() => {
     const needle = nav.filter();
-    return state.resources
+
+    let resources = state.resources;
+    // Filter out disabled resources if showDisabledResources is false
+    if (!state.showDisabledResources) {
+      resources = resources.filter((r) => !r.isDisabled);
+    }
+
+    return resources
       .map((r) => ({
         resource: r,
         group: getGroupKey(r),

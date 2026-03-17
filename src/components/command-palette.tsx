@@ -250,32 +250,23 @@ export function CommandPalette(props: CommandPaletteProps) {
                         }
                         paddingLeft={2}
                         paddingRight={2}
+                        justifyContent="space-between"
                       >
-                        <text
-                          flexGrow={1}
-                          fg={isSelected() ? theme.background : theme.text}
-                          attributes={
-                            isSelected() ? TextAttributes.BOLD : undefined
-                          }
-                          wrapMode="none"
-                          overflow="hidden"
-                          justifyContent="space-between"
-                          flexDirection="row"
-                        >
+                        <text fg={isSelected() ? theme.background : theme.text}>
                           {option.title}
-                          <Show when={option.description}>
-                            <span
-                              style={{
-                                fg: isSelected()
-                                  ? theme.background
-                                  : theme.textMuted,
-                              }}
-                            >
-                              {" "}
-                              {option.description}
-                            </span>
-                          </Show>
                         </text>
+                        <Show when={option.description}>
+                          <text
+                            style={{
+                              fg: isSelected()
+                                ? theme.background
+                                : theme.textMuted,
+                            }}
+                          >
+                            {" "}
+                            {option.description}
+                          </text>
+                        </Show>
                       </box>
                     );
                   }}
