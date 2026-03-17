@@ -6,7 +6,6 @@
 - logs
   - log clearing doens't work
 - resource picker search doens't prioritize exact match.
-- don't show disabled resources in resource picker
 
 # ROADMAP
 

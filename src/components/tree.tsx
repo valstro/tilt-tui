@@ -154,7 +154,6 @@ export function Tree() {
 
   let scrollRef: ScrollBoxRenderable | undefined;
 
-  // Lift blink animation to parent - single interval instead of one per resource
   const { opacity, getBlinkingColor } = useBlinkWhenBuilding({ theme });
 
   // Consolidated memo: filter resources and build tree nodes in one pass
