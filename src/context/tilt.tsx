@@ -47,6 +47,7 @@ interface TiltState {
   namespace: string | null;
   activeProfile: string | null;
   resources: Resource[];
+  globalButtons: ButtonAction[];
   selectedResource: string | null;
   statusFilter: StatusFilter;
   showDisabledResources: boolean;
@@ -87,6 +88,7 @@ export function TiltProvider(
     namespace: null,
     activeProfile: null,
     resources: [],
+    globalButtons: [],
     selectedResource: null,
     statusFilter: "all",
     showDisabledResources: false,
@@ -165,17 +167,19 @@ export function TiltProvider(
         const { resources } = s;
 
         const buttonMap = new Map<string, ButtonAction[]>();
+        const globalBtns: ButtonAction[] = [];
 
         for (const btn of buttons) {
-          const resourceName =
-            btn.spec.location?.componentType === "Resource"
-              ? btn.spec.location.componentID
-              : "";
-          if (resourceName) {
-            // Regular button - add to buttons list
-            const existing = buttonMap.get(resourceName) ?? [];
-            existing.push(buttonActionFromAPIButton(btn));
-            buttonMap.set(resourceName, existing);
+          const componentType = btn.spec.location?.componentType;
+          if (componentType === "Resource") {
+            const resourceName = btn.spec.location?.componentID ?? "";
+            if (resourceName) {
+              const existing = buttonMap.get(resourceName) ?? [];
+              existing.push(buttonActionFromAPIButton(btn));
+              buttonMap.set(resourceName, existing);
+            }
+          } else if (componentType === "Global") {
+            globalBtns.push(buttonActionFromAPIButton(btn));
           }
         }
 
@@ -185,6 +189,10 @@ export function TiltProvider(
             // buttons can get blanked out by resource updates, so make sure we merge updated buttons in
             resource.buttons = mergeButtons(resource.buttons, btns);
           }
+        }
+
+        if (globalBtns.length > 0) {
+          s.globalButtons = mergeButtons(s.globalButtons, globalBtns);
         }
       }),
     );
@@ -221,6 +229,7 @@ export function TiltProvider(
         batch(() => {
           setState("connectionStatus", "connected");
           setState("resources", []);
+          setState("globalButtons", []);
           setState("tiltStartTime", null);
         });
         logStore.clear();

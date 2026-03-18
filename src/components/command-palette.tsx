@@ -71,11 +71,24 @@ export function CommandPalette(props: CommandPaletteProps) {
           result.push({
             title: button.text,
             value: `button:${button.name}`,
-            description: `${button.name}`,
+            description: `${selectedResource.name}`,
             category: "Actions",
             button: button.raw,
           });
         }
+      }
+    }
+
+    // Global actions are always available regardless of selected resource
+    for (const button of tiltState.globalButtons) {
+      if (!button.disabled) {
+        result.push({
+          title: button.text,
+          value: `button:${button.name}`,
+          description: "global",
+          category: "Actions",
+          button: button.raw,
+        });
       }
     }
 

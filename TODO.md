@@ -18,8 +18,6 @@
 - log clearing
 - user config
   - mutable keymap
-- global actions
-  - actionbuttons e.g. NAV
 - status line
   - show AWS SSO session info
 - self-updating tui client
