@@ -34,6 +34,11 @@ function hasVisibleInputs(button: APIButton): boolean {
   );
 }
 
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 1) + "…";
+}
+
 interface CommandPaletteProps {
   onClose: () => void;
   onSelect: (option: PaletteOption) => void;
@@ -277,7 +282,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                             }}
                           >
                             {" "}
-                            {option.description}
+                            {truncate(option.description!, 20)}
                           </text>
                         </Show>
                       </box>
