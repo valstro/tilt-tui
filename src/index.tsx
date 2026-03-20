@@ -3,6 +3,14 @@
 import { render } from "@opentui/solid";
 import { App } from "./app";
 import { ConsolePosition } from "@opentui/core";
+import { initCLI } from "./cli";
+import { startTiltProcess } from "./tilt/process";
+
+const config = initCLI();
+
+if (config.spawnProcess) {
+  startTiltProcess(config.tiltArgs);
+}
 
 render(App, {
   targetFps: 30,
