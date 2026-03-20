@@ -5,9 +5,6 @@ import { parseColor, RGBA } from "@opentui/core";
 import { useTimeline } from "@opentui/solid";
 import { ResourceStatus } from "../tilt/types";
 import { defaultTheme, statusColor, type Theme } from "../theme/theme";
-import debug from "debug";
-
-const debugLog = debug("tilt-tui:animation");
 
 export interface UseBlinkWhenBuildingOptions {
   /** The theme to use for colors (defaults to defaultTheme) */
@@ -67,8 +64,6 @@ export function useBlinkWhenBuilding(
         const opacityValue =
           (currentTime < halfDuration ? currentTime : duration - currentTime) /
           halfDuration;
-
-        debugLog("opacity", opacityValue);
 
         setOpacity(opacityValue);
       },
