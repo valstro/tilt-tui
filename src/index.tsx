@@ -3,10 +3,10 @@
 import { render } from "@opentui/solid";
 import { App } from "./app";
 import { ConsolePosition } from "@opentui/core";
-import { initCLI } from "./cli";
+import { parseCLI } from "./cli";
 import { startTiltProcess } from "./tilt/process";
 
-const config = initCLI();
+const config = parseCLI();
 
 if (config.spawnProcess) {
   startTiltProcess(config.tiltArgs);

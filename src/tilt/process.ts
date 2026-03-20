@@ -2,6 +2,7 @@ import type { Subprocess } from "bun";
 
 let tiltProcess: Subprocess | null = null;
 
+/** Spawn `tilt up` as a child process. Args are passed through verbatim. */
 export function startTiltProcess(tiltArgs: string[]): void {
   const tiltBinary = Bun.which("tilt");
   if (!tiltBinary) {
@@ -9,12 +10,9 @@ export function startTiltProcess(tiltArgs: string[]): void {
     process.exit(1);
   }
 
-  // Construct: tilt up -- <tiltfile-args>
-  // The '--' separates tilt's own flags from Tiltfile config args
-  const args = [tiltBinary, "up", "--", ...tiltArgs];
+  const args = [tiltBinary, "up", ...tiltArgs];
 
   tiltProcess = Bun.spawn(args, {
-    cwd: process.cwd(),
     stdout: "ignore",
     stderr: "ignore", // we can rely on the TUI for this info
     env: {
@@ -22,6 +20,17 @@ export function startTiltProcess(tiltArgs: string[]): void {
       TILT_DISABLE_ANALYTICS: "true",
       DO_NOT_TRACK: "true",
     },
+  });
+
+  // cleanup() nulls tiltProcess before tilt actually exits, so when
+  // this fires after an intentional kill, tiltProcess is already null.
+  tiltProcess.exited.then((code) => {
+    if (!tiltProcess) return;
+    tiltProcess = null;
+    if (code !== 0) {
+      console.error(`tilt exited with code ${code}`);
+      process.exit(code ?? 1);
+    }
   });
 
   const cleanup = () => {
@@ -32,4 +41,6 @@ export function startTiltProcess(tiltArgs: string[]): void {
   };
 
   process.on("exit", cleanup);
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
 }
