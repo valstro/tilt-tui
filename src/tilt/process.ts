@@ -22,17 +22,6 @@ export function startTiltProcess(tiltArgs: string[]): void {
     },
   });
 
-  // cleanup() nulls tiltProcess before tilt actually exits, so when
-  // this fires after an intentional kill, tiltProcess is already null.
-  tiltProcess.exited.then((code) => {
-    if (!tiltProcess) return;
-    tiltProcess = null;
-    if (code !== 0) {
-      console.error(`tilt exited with code ${code}`);
-      process.exit(code ?? 1);
-    }
-  });
-
   const cleanup = () => {
     if (tiltProcess && !tiltProcess.killed) {
       tiltProcess.kill("SIGTERM");
