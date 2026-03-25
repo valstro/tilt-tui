@@ -178,7 +178,7 @@ export function ResourceView() {
         <Show when={autoScroll()}>
           <text fg={theme.success} flexShrink={0}>
             {" "}
-            [follow]
+            [autoscroll]
           </text>
         </Show>
         <Show when={!showTimestamps()}>

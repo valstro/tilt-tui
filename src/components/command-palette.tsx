@@ -34,6 +34,11 @@ function hasVisibleInputs(button: APIButton): boolean {
   );
 }
 
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 1) + "…";
+}
+
 interface CommandPaletteProps {
   onClose: () => void;
   onSelect: (option: PaletteOption) => void;
@@ -85,8 +90,8 @@ export function CommandPalette(props: CommandPaletteProps) {
         result.push({
           title: button.text,
           value: `button:${button.name}`,
-          description: "global",
-          category: "Actions",
+          description: button.name,
+          category: "Global Actions",
           button: button.raw,
         });
       }
@@ -134,7 +139,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 
   const grouped = createMemo(() => {
     const groups = new Map<string, PaletteOption[]>();
-    const categoryOrder = ["Links", "Actions", "Commands"];
+    const categoryOrder = ["Links", "Actions", "Global Actions", "Commands"];
 
     for (const opt of filtered()) {
       const existing = groups.get(opt.category) ?? [];
@@ -277,7 +282,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                             }}
                           >
                             {" "}
-                            {option.description}
+                            {truncate(option.description!, 20)}
                           </text>
                         </Show>
                       </box>

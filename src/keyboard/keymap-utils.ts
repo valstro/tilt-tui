@@ -16,12 +16,12 @@ export interface KeyMapping {
   };
   command: Command;
   description: string;
-  showInHelp?: boolean; // Default true
+  showInHelpAs?: string; // Default true
 }
 
 // Helper: get mappings visible in help for a mode
 export function getHelpMappingsForMode(mode: Mode): KeyMapping[] {
-  return keymap.filter((m) => m.modes.includes(mode) && m.showInHelp);
+  return keymap.filter((m) => m.modes.includes(mode) && !!m.showInHelpAs);
 }
 
 // Helper: format key for display (^e for ctrl+e, Q for shift+q)
@@ -42,7 +42,7 @@ export function formatKeyDisplay(mapping: KeyMapping): string {
 // Help item for footer display
 export interface HelpItem {
   keys: string;
-  description: string;
+  text: string;
 }
 
 // Helper: get combined key displays for footer (e.g., "j/k" for up/down)
@@ -68,13 +68,15 @@ export function getHelpItemsForMode(mode: Mode): HelpItem[] {
   const items: HelpItem[] = [];
 
   for (const mapping of [...modeBindings, ...appBindings]) {
-    if (seen.has(mapping.command) || skipCommands.has(mapping.command))
+    if (seen.has(mapping.command) || skipCommands.has(mapping.command)) {
       continue;
+    }
+
     seen.add(mapping.command);
 
     items.push({
       keys: combinedKeys[mapping.command] ?? formatKeyDisplay(mapping),
-      description: mapping.description,
+      text: mapping.showInHelpAs ?? mapping.description,
     });
   }
 
