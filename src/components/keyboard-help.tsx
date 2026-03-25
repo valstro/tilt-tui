@@ -7,7 +7,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { keymap } from "../keymap";
-import { formatKeyDisplay, type Mode, type KeyMapping } from "../keyboard/keymap-utils";
+import {
+  formatKeyDisplay,
+  type Mode,
+  type KeyMapping,
+} from "../keyboard/keymap-utils";
 
 interface KeyboardHelpProps {
   onClose: () => void;
@@ -45,7 +49,11 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
     });
   });
 
-  function handleKeyboard(evt: { name: string; shift?: boolean; preventDefault: () => void }) {
+  function handleKeyboard(evt: {
+    name: string;
+    shift?: boolean;
+    preventDefault: () => void;
+  }) {
     // Additional close keys beyond escape (handled by Modal)
     if (evt.name === "?" || evt.name === "q") {
       evt.preventDefault();

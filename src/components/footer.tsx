@@ -32,7 +32,7 @@ export function Footer() {
 
     // When ResourceView is narrow (< 80 chars), show only the help shortcut
     if (width < 80) {
-      return items.filter((item) => item.description === "help");
+      return items.filter((item) => item.text === "help");
     }
 
     return items;
@@ -52,7 +52,7 @@ export function Footer() {
           <>
             {index() > 0 && <text fg={theme.textMuted}> · </text>}
             <text fg={theme.primary}>{item.keys}</text>
-            <text fg={theme.textMuted}> {item.description}</text>
+            <text fg={theme.textMuted}> {item.text}</text>
           </>
         )}
       </For>
