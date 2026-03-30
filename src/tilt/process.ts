@@ -2,6 +2,27 @@ import type { Subprocess } from "bun";
 
 let tiltProcess: Subprocess | null = null;
 
+export async function isTiltRunning(): Promise<boolean> {
+  const tiltBinary = Bun.which("tilt");
+  if (!tiltBinary) {
+    return false;
+  }
+
+  // lists all the resources, if tilt is running, this should succeed
+  const proc = Bun.spawn([tiltBinary, "get", "uiresources"], {
+    stdout: "ignore",
+    stderr: "ignore",
+    env: {
+      ...process.env,
+      TILT_DISABLE_ANALYTICS: "true",
+      DO_NOT_TRACK: "true",
+    },
+  });
+
+  const exitCode = await proc.exited;
+  return exitCode === 0;
+}
+
 /** Spawn `tilt up` as a child process. Args are passed through verbatim. */
 export function startTiltProcess(tiltArgs: string[]): void {
   const tiltBinary = Bun.which("tilt");
