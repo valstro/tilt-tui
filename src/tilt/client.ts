@@ -446,14 +446,17 @@ export class TiltClient {
    * Open a URL in the default browser
    */
   async openUrl(url: string): Promise<void> {
-    const { spawn } = await import("bun");
-    // Use 'open' on macOS, 'xdg-open' on Linux, 'start' on Windows
-    const cmd =
-      process.platform === "darwin"
-        ? "open"
-        : process.platform === "win32"
-          ? "start"
-          : "xdg-open";
+    const { spawn, which } = await import("bun");
+
+    let cmd: string;
+    if (process.platform === "darwin") {
+      cmd = "open";
+    } else if (process.platform === "win32") {
+      cmd = "start";
+    } else {
+      cmd = which("xdg-open") ? "xdg-open" : "wslview";
+    }
+
     spawn([cmd, url], { stdout: "ignore", stderr: "ignore" });
   }
 }

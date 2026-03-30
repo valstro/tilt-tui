@@ -6,9 +6,12 @@
 - logs
   - log clearing doens't work
 - resource picker search doens't prioritize exact match.
+- "reload" is confusing to people. label shoudl be "trigger resource"
 
 # ROADMAP
 
+- self-updating tui client
+  - ci releases
 - Mouse selection in logs-view
 - UI Unit tests
 - ui improvements
@@ -20,4 +23,3 @@
   - mutable keymap
 - status line
   - show AWS SSO session info
-- self-updating tui client
