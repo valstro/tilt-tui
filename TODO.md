@@ -6,7 +6,6 @@
 - logs
   - log clearing doens't work
 - resource picker search doens't prioritize exact match.
-- "reload" is confusing to people. label shoudl be "trigger resource"
 
 # ROADMAP
 
