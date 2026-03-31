@@ -30,6 +30,7 @@ import { Commands } from "@/commands";
 import { getEffectiveStatus } from "@/tilt/status-utils";
 import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
 import { StatusCounts } from "./status-counts";
+import { truncate } from "@/utils/truncate";
 
 interface TreeNode {
   type: "group" | "resource";
@@ -523,7 +524,7 @@ function ResourceNode(props: {
       <box flexDirection="row" justifyContent="flex-start" gap={1}>
         <text bg={runtimeColor()}> </text>
         <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
-          {r().name}
+          {truncate(r().name, 30)}
         </text>
       </box>
 

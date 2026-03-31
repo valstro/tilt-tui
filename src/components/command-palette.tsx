@@ -17,6 +17,7 @@ import {
 } from "../keyboard/keymap-utils";
 import type { APIButton } from "../tilt/types";
 import type { APIInputSpec } from "../tilt/api-types";
+import { truncate } from "../utils/truncate";
 
 export interface PaletteOption {
   title: string;
@@ -32,11 +33,6 @@ function hasVisibleInputs(button: APIButton): boolean {
   return (button.spec.inputs ?? []).some(
     (input: APIInputSpec) => input.text || input.bool || input.choice,
   );
-}
-
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 1) + "…";
 }
 
 interface CommandPaletteProps {
