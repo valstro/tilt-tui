@@ -1,0 +1,56 @@
+import type { Subprocess } from "bun";
+
+let tiltProcess: Subprocess | null = null;
+
+export async function isTiltRunning(): Promise<boolean> {
+  const tiltBinary = Bun.which("tilt");
+  if (!tiltBinary) {
+    return false;
+  }
+
+  // lists all the resources, if tilt is running, this should succeed
+  const proc = Bun.spawn([tiltBinary, "get", "uiresources"], {
+    stdout: "ignore",
+    stderr: "ignore",
+    env: {
+      ...process.env,
+      TILT_DISABLE_ANALYTICS: "true",
+      DO_NOT_TRACK: "true",
+    },
+  });
+
+  const exitCode = await proc.exited;
+  return exitCode === 0;
+}
+
+/** Spawn `tilt up` as a child process. Args are passed through verbatim. */
+export function startTiltProcess(tiltArgs: string[]): void {
+  const tiltBinary = Bun.which("tilt");
+  if (!tiltBinary) {
+    console.error("Unable to locate tilt binary in your PATH");
+    process.exit(1);
+  }
+
+  const args = [tiltBinary, "up", ...tiltArgs];
+
+  tiltProcess = Bun.spawn(args, {
+    stdout: "ignore",
+    stderr: "ignore", // we can rely on the TUI for this info
+    env: {
+      ...process.env,
+      TILT_DISABLE_ANALYTICS: "true",
+      DO_NOT_TRACK: "true",
+    },
+  });
+
+  const cleanup = () => {
+    if (tiltProcess && !tiltProcess.killed) {
+      tiltProcess.kill("SIGTERM");
+      tiltProcess = null;
+    }
+  };
+
+  process.on("exit", cleanup);
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
+}
