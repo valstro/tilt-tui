@@ -22,6 +22,10 @@ compile a binary for the current platform
 
 ```
 bun run build:binary:single
+
+# then symlink built binary
+$ which tui
+tui: aliased to /home/ac/dev/tilt-tui-root/dist/tilt-tui-linux-x64/bin/tilt-tui   
 ```
 
 ### Debugging
