@@ -58,10 +58,8 @@ jobs:
           name: tilt-tui-linux-x64
           path: dist/tilt-tui-linux-x64/
 
-      - name: Configure CodeArtifact auth
-        run: |
-          # TODO: Replace with custom action for CodeArtifact authentication
-          echo "Placeholder for CodeArtifact authentication"
+      - name: Login to CodeArtifact
+        uses: valstro/actions/codeartifact-login@0.78.3
 
       - name: Publish to npm
         run: npm publish
