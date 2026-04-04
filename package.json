@@ -1,9 +1,15 @@
 {
-  "name": "tilt-tui-opentui",
+  "name": "@valstro-internal/tilt-tui",
   "version": "0.1.0",
   "description": "Tilt TUI built with OpenTUI Solid",
   "type": "module",
-  "private": true,
+  "private": false,
+  "bin": {
+    "tilt-tui": "./dist/tilt-tui-linux-x64/bin/tilt-tui"
+  },
+  "files": [
+    "dist/tilt-tui-linux-x64/"
+  ],
   "scripts": {
     "dev": "bun run --conditions=browser --preload @opentui/solid/preload ./src/index.tsx",
     "debug": "SHOW_CONSOLE=true bun run --inspect-wait --conditions=browser --preload @opentui/solid/preload ./src/index.tsx",
