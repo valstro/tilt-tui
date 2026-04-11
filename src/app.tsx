@@ -1,9 +1,10 @@
 // Main App component
 
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { useRenderer } from "@opentui/solid";
 import { TiltProvider, useTilt } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
+import { setGlobalRenderer } from "./global-renderer";
 import { Header } from "./components/header";
 import { Tree } from "./components/tree";
 import { ResourceView } from "./components/resourceview";
@@ -23,6 +24,14 @@ import type { APIButton } from "./tilt/api-types";
 
 function AppContent() {
   const renderer = useRenderer();
+
+  // Register renderer globally for emergency cleanup
+  onMount(() => {
+    setGlobalRenderer(renderer);
+  });
+  onCleanup(() => {
+    setGlobalRenderer(null);
+  });
 
   // set up debug console activation
   const debugKeyHandler = (key: KeyEvent) => {

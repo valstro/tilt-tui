@@ -5,8 +5,21 @@
 // - Word-aware line wrapping with continuation indicators
 // - ANSI color preservation
 // - Virtual scrolling with custom scrollbar
+// - Mouse scroll wheel support
+// - Text selection with clipboard copy
 
-import { BoxRenderable, FrameBufferRenderable, RGBA } from "@opentui/core";
+import {
+  BoxRenderable,
+  FrameBufferRenderable,
+  RGBA,
+  type MouseEvent,
+  Selection as TUISelection,
+  convertGlobalToLocalSelection,
+  type LocalSelectionBounds,
+  type RenderContext,
+  type FrameBufferOptions,
+} from "@opentui/core";
+
 import { useRenderer, onResize } from "@opentui/solid";
 import {
   createSignal,
@@ -28,6 +41,8 @@ import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
 import { Theme } from "../theme/theme";
 
+const DEFAULT_SCROLL_WHEEL_LINES = 3;
+
 export interface LogBufferViewProps {
   /** The log store to read logs from */
   logStore: LogStore;
@@ -39,6 +54,8 @@ export interface LogBufferViewProps {
   showTimestamps: () => boolean;
   /** Callback when auto-scroll state changes */
   onAutoScrollChange?: (autoScroll: boolean) => void;
+  /** Lines to scroll per mouse wheel event (default: 3) */
+  scrollLinesPerWheel?: number;
 }
 
 export interface LogBufferViewRef {
@@ -75,12 +92,148 @@ interface Dimensions {
   height: number;
 }
 
+// SelectableLogFrameBuffer - FrameBuffer with mouse selection and scroll support
+interface SelectableLogFrameBufferOptions extends FrameBufferOptions {
+  scrollLinesPerWheel: number;
+  onScrollWheel: (delta: number) => void;
+  onSelectionChange: (
+    selection: LocalSelectionBounds | null,
+    isDragging: boolean,
+  ) => void;
+  onSelectionEnd: (text: string) => void;
+  getVisibleRows: () => VisibleRow[];
+}
+
+class SelectableLogFrameBuffer extends FrameBufferRenderable {
+  public override selectable: boolean = true;
+  private _localSelection: LocalSelectionBounds | null = null;
+  private _prevWasDragging = false;
+  private scrollLinesPerWheel: number;
+  private onScrollWheel: (delta: number) => void;
+  private onSelectionChange: (
+    selection: LocalSelectionBounds | null,
+    isDragging: boolean,
+  ) => void;
+  private onSelectionEnd: (text: string) => void;
+  private getVisibleRows: () => VisibleRow[];
+
+  constructor(ctx: RenderContext, options: SelectableLogFrameBufferOptions) {
+    super(ctx, {
+      id: options.id,
+      width: options.width,
+      height: options.height,
+      flexGrow: options.flexGrow,
+    });
+    this.scrollLinesPerWheel = options.scrollLinesPerWheel;
+    this.onScrollWheel = options.onScrollWheel;
+    this.onSelectionChange = options.onSelectionChange;
+    this.onSelectionEnd = options.onSelectionEnd;
+    this.getVisibleRows = options.getVisibleRows;
+  }
+
+  override shouldStartSelection(x: number, y: number): boolean {
+    const localX = x - this.x;
+    const localY = y - this.y;
+    return (
+      localX >= 0 && localX < this.width && localY >= 0 && localY < this.height
+    );
+  }
+
+  override onSelectionChanged(sel: TUISelection | null): boolean {
+    if (!sel) {
+      return false;
+    }
+
+    const wasDragging = this._prevWasDragging;
+    const isDragging = sel?.isDragging ?? false;
+
+    this._localSelection = convertGlobalToLocalSelection(sel, this.x, this.y);
+    this._prevWasDragging = isDragging;
+
+    // Notify parent of selection change
+    this.onSelectionChange(this._localSelection, isDragging);
+
+    // Copy to clipboard when selection ends (was dragging, now not)
+    if (wasDragging && sel && !isDragging && this.hasSelection()) {
+      const text = this.getSelectedText();
+      if (text) {
+        this.onSelectionEnd(text);
+      }
+    }
+
+    this.requestRender();
+    return this.hasSelection();
+  }
+
+  override getSelectedText(): string {
+    if (!this._localSelection?.isActive) return "";
+
+    const rows = this.getVisibleRows();
+    const { anchorX, anchorY, focusX, focusY } = this._localSelection;
+
+    // Normalize to reading order (top-left to bottom-right)
+    let startY = anchorY,
+      startX = anchorX,
+      endY = focusY,
+      endX = focusX;
+    if (startY > endY || (startY === endY && startX > endX)) {
+      [startY, endY] = [endY, startY];
+      [startX, endX] = [endX, startX];
+    }
+
+    const lines: string[] = [];
+    for (
+      let y = Math.max(0, startY);
+      y <= Math.min(rows.length - 1, endY);
+      y++
+    ) {
+      const row = rows[y];
+      const text = row.text;
+
+      if (y === startY && y === endY) {
+        // Single row selection
+        lines.push(
+          text.slice(Math.max(0, startX), Math.min(text.length, endX + 1)),
+        );
+      } else if (y === startY) {
+        lines.push(text.slice(Math.max(0, startX)));
+      } else if (y === endY) {
+        lines.push(text.slice(0, Math.min(text.length, endX + 1)));
+      } else {
+        lines.push(text);
+      }
+    }
+
+    return lines.join("\n");
+  }
+
+  override hasSelection(): boolean {
+    return this._localSelection !== null && this._localSelection.isActive;
+  }
+
+  getLocalSelection(): LocalSelectionBounds | null {
+    return this._localSelection;
+  }
+
+  protected override onMouseEvent(event: MouseEvent): void {
+    if (event.propagationStopped) return;
+
+    if (event.type === "scroll" && event.scroll) {
+      const delta =
+        event.scroll.direction === "up"
+          ? -this.scrollLinesPerWheel
+          : this.scrollLinesPerWheel;
+      this.onScrollWheel(delta);
+      event.stopPropagation();
+    }
+  }
+}
+
 /**
  * High-performance log view using FrameBufferRenderable.
  *
  * Returns a tuple of [Component, Ref] for use in parent components.
  * The ref provides scroll control methods.
- * ```
  */
 export function LogBufferView(
   props: LogBufferViewProps,
@@ -99,11 +252,18 @@ export function LogBufferView(
   // The LogBuffer manages virtual scrolling and line wrapping
   const buffer = new LogBuffer();
 
-  // FrameBuffer for direct character rendering
-  let frameBuffer: FrameBufferRenderable | null = null;
-
   // Container element reference for size tracking
   let containerEl: BoxRenderable | null = null;
+
+  // SelectableLogFrameBuffer for direct character rendering with mouse support
+  let selectableFrameBuffer: SelectableLogFrameBuffer | null = null;
+
+  // Selection state for rendering
+  let localSelection: LocalSelectionBounds | null = null;
+
+  // Scroll lines per wheel event
+  const scrollLinesPerWheel =
+    props.scrollLinesPerWheel ?? DEFAULT_SCROLL_WHEEL_LINES;
 
   // Pre-compute colors from theme
   const colors = createMemo(() => ({
@@ -118,6 +278,9 @@ export function LogBufferView(
     // Highlight color for search matches
     highlight: RGBA.fromHex(props.theme.primary),
     highlightBg: RGBA.fromHex("#3d3200"), // Dark yellow background for highlighting
+    // Selection colors
+    selectionFg: RGBA.fromHex(props.theme.selectionFg),
+    selectionBg: RGBA.fromHex(props.theme.selectionBg),
   }));
 
   function getLevelColor(level: string): RGBA {
@@ -132,23 +295,40 @@ export function LogBufferView(
   }
 
   function createFrameBuffer(): void {
-    if (frameBuffer) {
-      frameBuffer.destroy();
+    if (selectableFrameBuffer) {
+      selectableFrameBuffer.destroy();
     }
 
     const { width: w, height: h } = dimensions();
 
     if (w <= 0 || h <= 0) return;
 
-    frameBuffer = new FrameBufferRenderable(renderer, {
+    selectableFrameBuffer = new SelectableLogFrameBuffer(renderer, {
       id: `log-buffer-${props.manifestName() ?? "default"}-${Date.now()}`,
       width: w,
       height: h,
       flexGrow: 1,
+      scrollLinesPerWheel,
+      onScrollWheel: (delta: number) => {
+        buffer.scrollBy(delta);
+        props.onAutoScrollChange?.(buffer.autoScroll);
+        setRenderVersion((v) => v + 1);
+      },
+      onSelectionChange: (
+        selection: LocalSelectionBounds | null,
+        _isDragging: boolean,
+      ) => {
+        localSelection = selection;
+        setRenderVersion((v) => v + 1);
+      },
+      onSelectionEnd: (text: string) => {
+        renderer.copyToClipboardOSC52(text);
+      },
+      getVisibleRows: () => buffer.getVisibleRows(),
     });
 
     if (containerEl) {
-      containerEl.add(frameBuffer);
+      containerEl.add(selectableFrameBuffer);
     }
 
     renderVisibleLines();
@@ -193,9 +373,9 @@ export function LogBufferView(
   onCleanup(() => {
     props.logStore.removeUpdateListener(handleLogUpdate);
 
-    if (frameBuffer) {
-      frameBuffer.destroy();
-      frameBuffer = null;
+    if (selectableFrameBuffer) {
+      selectableFrameBuffer.destroy();
+      selectableFrameBuffer = null;
     }
   });
 
@@ -211,8 +391,8 @@ export function LogBufferView(
         setDimensions({ width: w, height: h });
         buffer.resize(w, h);
 
-        if (frameBuffer) {
-          frameBuffer.frameBuffer.resize(w, h);
+        if (selectableFrameBuffer) {
+          selectableFrameBuffer.frameBuffer.resize(w, h);
         }
 
         setRenderVersion((v) => v + 1);
@@ -268,13 +448,47 @@ export function LogBufferView(
   );
 
   /**
+   * Compute selection range for a given row based on current selection.
+   */
+  function getSelectionRangeForRow(
+    y: number,
+  ): { startX: number; endX: number } | null {
+    if (!localSelection?.isActive) return null;
+
+    const { anchorX, anchorY, focusX, focusY } = localSelection;
+
+    // Normalize to reading order
+    let startY = anchorY,
+      startX = anchorX,
+      endY = focusY,
+      endX = focusX;
+    if (startY > endY || (startY === endY && startX > endX)) {
+      [startY, endY] = [endY, startY];
+      [startX, endX] = [endX, startX];
+    }
+
+    // Check if this row is within selection
+    if (y < startY || y > endY) return null;
+
+    // Determine selection range for this row
+    const { width: w } = dimensions();
+    let rowStartX = 0;
+    let rowEndX = w - 2; // Account for scrollbar
+
+    if (y === startY) rowStartX = Math.max(0, startX);
+    if (y === endY) rowEndX = Math.min(w - 2, endX);
+
+    return { startX: rowStartX, endX: rowEndX };
+  }
+
+  /**
    * Render visible log lines to the FrameBuffer.
    * This is O(viewport height), not O(total lines).
    */
   function renderVisibleLines(): void {
-    if (!frameBuffer) return;
+    if (!selectableFrameBuffer) return;
 
-    const fb = frameBuffer.frameBuffer;
+    const fb = selectableFrameBuffer.frameBuffer;
     if (!fb) return;
 
     const { width: w, height: h } = dimensions();
@@ -289,7 +503,8 @@ export function LogBufferView(
     // Draw each row
     for (let y = 0; y < h && y < rows.length; y++) {
       const row = rows[y];
-      drawRow(fb, row, y, w, c);
+      const selectionRange = getSelectionRangeForRow(y);
+      drawRow(fb, row, y, w, c, selectionRange);
     }
 
     // Draw scrollbar in rightmost column
@@ -308,6 +523,7 @@ export function LogBufferView(
     y: number,
     w: number,
     c: ReturnType<typeof colors>,
+    selectionRange: { startX: number; endX: number } | null,
   ): void {
     if (row.isContinuation) {
       // Draw continuation indicator in accent color
@@ -330,15 +546,38 @@ export function LogBufferView(
         true,
         w,
         matches,
+        selectionRange,
       );
     } else if (row.line.buildEvent) {
       // Draw build event highlighted line
       const levelColor = getLevelColor(row.level);
-      drawAnsiText(fb, row.text, 0, y, levelColor, c.accent, false, w);
+      drawAnsiText(
+        fb,
+        row.text,
+        0,
+        y,
+        levelColor,
+        c.accent,
+        false,
+        w,
+        undefined,
+        selectionRange,
+      );
     } else {
       // Draw normal line with level color as default
       const levelColor = getLevelColor(row.level);
-      drawAnsiText(fb, row.text, 0, y, levelColor, c.bg, false, w, row.matches);
+      drawAnsiText(
+        fb,
+        row.text,
+        0,
+        y,
+        levelColor,
+        c.bg,
+        false,
+        w,
+        row.matches,
+        selectionRange,
+      );
     }
   }
 
@@ -351,8 +590,19 @@ export function LogBufferView(
   }
 
   /**
+   * Check if a position is within the selection range.
+   */
+  function isInSelectionRange(
+    x: number,
+    selectionRange: { startX: number; endX: number } | null,
+  ): boolean {
+    if (!selectionRange) return false;
+    return x >= selectionRange.startX && x <= selectionRange.endX;
+  }
+
+  /**
    * Draw text with ANSI color codes to the FrameBuffer.
-   * Optionally highlights matched ranges.
+   * Optionally highlights matched ranges and selection.
    */
   function drawAnsiText(
     fb: any,
@@ -364,6 +614,7 @@ export function LogBufferView(
     dimmed: boolean,
     maxWidth: number,
     matches?: MatchRange[],
+    selectionRange?: { startX: number; endX: number } | null,
   ): void {
     const segments = parseAnsi(text);
     let x = startX;
@@ -388,10 +639,21 @@ export function LogBufferView(
         // Reserve rightmost column for scrollbar
         if (x >= maxWidth - 1) break;
 
+        // Check if this character is in selection range (takes priority)
+        const inSelection = isInSelectionRange(x, selectionRange ?? null);
         // Check if this character is in a match range
-        const inMatch = isInMatchRange(textPos, matches);
-        const cellFg = inMatch ? c.highlight : fg;
-        const cellBg = inMatch ? c.highlightBg : bg;
+        const inMatch = !inSelection && isInMatchRange(textPos, matches);
+
+        let cellFg = fg;
+        let cellBg = bg;
+
+        if (inSelection) {
+          cellFg = c.selectionFg;
+          cellBg = c.selectionBg;
+        } else if (inMatch) {
+          cellFg = c.highlight;
+          cellBg = c.highlightBg;
+        }
 
         fb.setCell(x, y, char, cellFg, cellBg);
         x++;
