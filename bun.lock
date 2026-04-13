@@ -5,8 +5,8 @@
     "": {
       "name": "tilt-tui-opentui",
       "dependencies": {
-        "@opentui/core": "^0.1.97",
-        "@opentui/solid": "^0.1.97",
+        "@opentui/core": "0.1.97",
+        "@opentui/solid": "0.1.97",
         "effection": "4.0.2",
         "solid-js": "1.9.9",
       },
