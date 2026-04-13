@@ -4,6 +4,8 @@ import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { useRenderer } from "@opentui/solid";
 import { TiltProvider, useTilt } from "./context/tilt";
 import { FocusProvider, useFocus } from "./context/focus";
+import { ToastProvider } from "./context/toast";
+import { Toast } from "./components/toast";
 import { setGlobalRenderer } from "./global-renderer";
 import { Header } from "./components/header";
 import { Tree } from "./components/tree";
@@ -188,7 +190,10 @@ export function App() {
   return (
     <TiltProvider>
       <FocusProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+          <Toast />
+        </ToastProvider>
       </FocusProvider>
     </TiltProvider>
   );

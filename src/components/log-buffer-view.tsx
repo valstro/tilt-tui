@@ -56,6 +56,8 @@ export interface LogBufferViewProps {
   onAutoScrollChange?: (autoScroll: boolean) => void;
   /** Lines to scroll per mouse wheel event (default: 3) */
   scrollLinesPerWheel?: number;
+  /** Callback when text is copied to clipboard */
+  onTextCopied?: (text: string) => void;
 }
 
 export interface LogBufferViewRef {
@@ -323,6 +325,11 @@ export function LogBufferView(
       },
       onSelectionEnd: (text: string) => {
         renderer.copyToClipboardOSC52(text);
+        // Clear selection after copying
+        localSelection = null;
+        setRenderVersion((v) => v + 1);
+        // Notify parent that text was copied
+        props.onTextCopied?.(text);
       },
       getVisibleRows: () => buffer.getVisibleRows(),
     });
