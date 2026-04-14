@@ -22,3 +22,7 @@
   - mutable keymap
 - status line
   - show AWS SSO session info
+- toast messages
+  - on text selection
+  - on resource failed
+  - on all resources complete

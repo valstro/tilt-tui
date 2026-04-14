@@ -423,14 +423,6 @@ export class LogBuffer {
   }
 
   /**
-   * Binary search to find the index of the first wrapped line that contains
-   * rows at or after the given scrollTop position.
-   */
-  private findFirstVisibleLineIndex(scrollTop: number): number {
-    return this.findFirstVisibleLineIndexIn(this.wrappedLines, scrollTop);
-  }
-
-  /**
    * Binary search to find the index of the first wrapped line in a list that contains
    * rows at or after the given scrollTop position.
    */

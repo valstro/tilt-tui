@@ -4,6 +4,7 @@
 import { createSignal, createMemo, Show, createEffect, on } from "solid-js";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
+import { useToast } from "../context/toast";
 import { useKeyHandler } from "../keyboard/useKeyHandler";
 import { Commands } from "../commands";
 import { focusBorder } from "../theme/theme";
@@ -11,11 +12,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { PaneHeader } from "./pane-header";
 import { Footer } from "./footer";
 import { LogBufferView, type LogBufferViewRef } from "./log-buffer-view";
-import {
-  LogSearchModal,
-  parseSearchQuery,
-  type LogSearchFilter,
-} from "./log-search-modal";
+import { LogSearchModal, type LogSearchFilter } from "./log-search-modal";
 
 export function ResourceView() {
   const {
@@ -26,6 +23,7 @@ export function ResourceView() {
     activeLogFilterNames,
   } = useTilt();
   const { state: focusState, activeModal, openModal, closeModal } = useFocus();
+  const { showToast } = useToast();
   const theme = useTheme();
 
   // Local state
@@ -47,6 +45,9 @@ export function ResourceView() {
     theme,
     showTimestamps,
     onAutoScrollChange: setAutoScroll,
+    onTextCopied: () => {
+      showToast("Copied to clipboard");
+    },
   });
 
   // Store ref for keyboard handlers

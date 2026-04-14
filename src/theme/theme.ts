@@ -42,6 +42,10 @@ export interface Theme {
   borderActive: string;
   borderSubtle: string;
 
+  // Selection colors
+  selectionFg: string;
+  selectionBg: string;
+
   // Semantic colors
   primary: string;
   secondary: string;
@@ -63,6 +67,10 @@ export const defaultTheme: Theme = {
   border: opencodeTheme.step5,
   borderActive: opencodeTheme.secondary,
   borderSubtle: opencodeTheme.step4,
+
+  // Selection colors
+  selectionFg: "#ffffff",
+  selectionBg: "#264f78",
 
   // Semantic colors
   primary: opencodeTheme.step9,
