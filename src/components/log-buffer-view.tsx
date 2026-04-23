@@ -155,8 +155,14 @@ class SelectableLogFrameBuffer extends FrameBufferRenderable {
     // Notify parent of selection change
     this.onSelectionChange(this._localSelection, isDragging);
 
-    // Copy to clipboard when selection ends (was dragging, now not)
-    if (wasDragging && sel && !isDragging && this.hasSelection()) {
+    // Copy to clipboard when a non-empty selection ends (was dragging, now not)
+    if (
+      wasDragging &&
+      sel &&
+      !isDragging &&
+      this.hasSelection() &&
+      !this.isSelectionCollapsed()
+    ) {
       const text = this.getSelectedText();
       if (text) {
         this.onSelectionEnd(text);
@@ -172,6 +178,8 @@ class SelectableLogFrameBuffer extends FrameBufferRenderable {
 
     const rows = this.getVisibleRows();
     const { anchorX, anchorY, focusX, focusY } = this._localSelection;
+
+    if (anchorX === focusX && anchorY === focusY) return "";
 
     // Normalize to reading order (top-left to bottom-right)
     let startY = anchorY,
@@ -207,6 +215,13 @@ class SelectableLogFrameBuffer extends FrameBufferRenderable {
     }
 
     return lines.join("\n");
+  }
+
+  private isSelectionCollapsed(): boolean {
+    if (!this._localSelection?.isActive) return true;
+
+    const { anchorX, anchorY, focusX, focusY } = this._localSelection;
+    return anchorX === focusX && anchorY === focusY;
   }
 
   override hasSelection(): boolean {
