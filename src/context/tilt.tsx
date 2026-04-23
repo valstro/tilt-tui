@@ -207,17 +207,6 @@ export function TiltProvider(
    * - logs: for log updates (replaces polling)
    */
   function* mainOperation(): Operation<void> {
-    const tiltArgs = yield* call(() => client.getTiltArgs());
-    batch(() => {
-      setState("tiltArgs", tiltArgs);
-      if (tiltArgs.environment) {
-        setState("namespace", String(tiltArgs.environment));
-      }
-      if (tiltArgs.profile) {
-        setState("activeProfile", String(tiltArgs.profile));
-      }
-    });
-
     while (true) {
       setState("connectionStatus", "connecting");
 
@@ -234,7 +223,7 @@ export function TiltProvider(
         });
         logStore.clear();
 
-        // Spawn all consumers concurrently
+        // Spawn all consumers concurrently first so no messages are dropped
         // When WebSocket disconnects, all streams close and tasks complete
         const resourcesTask = yield* spawn(function* () {
           for (const update of yield* each(resources)) {
@@ -262,6 +251,20 @@ export function TiltProvider(
             setState("tiltStartTime", update.tiltStartTime);
             yield* each.next();
           }
+        });
+
+        // Fetch tilt args in the background (non-blocking)
+        yield* spawn(function* () {
+          const tiltArgs = yield* call(() => client.getTiltArgs());
+          batch(() => {
+            setState("tiltArgs", tiltArgs);
+            if (tiltArgs.environment) {
+              setState("namespace", String(tiltArgs.environment));
+            }
+            if (tiltArgs.profile) {
+              setState("activeProfile", String(tiltArgs.profile));
+            }
+          });
         });
 
         // Wait for all streams to close (indicates WebSocket disconnect)
