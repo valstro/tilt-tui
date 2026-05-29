@@ -15,6 +15,7 @@ import {
   formatKeyDisplay,
   type Command,
 } from "../keyboard/keymap-utils";
+import { Commands } from "../commands";
 import type { APIButton } from "../tilt/types";
 import type { APIInputSpec } from "../tilt/api-types";
 import { truncate } from "../utils/truncate";
@@ -78,6 +79,14 @@ export function CommandPalette(props: CommandPaletteProps) {
           });
         }
       }
+
+      result.push({
+        title: "Resource info",
+        value: `command:${Commands.RESOURCE_INFO_OPEN}`,
+        description: "i",
+        category: "Actions",
+        command: Commands.RESOURCE_INFO_OPEN,
+      });
     }
 
     // Global actions are always available regardless of selected resource

@@ -143,7 +143,7 @@ export function Tree() {
     resetStatusFilter,
     toggleShowDisabledResources,
   } = useTilt();
-  const { state: focusState, setActivePane } = useFocus();
+  const { state: focusState, setActivePane, openModal } = useFocus();
   const theme = useTheme();
 
   const [cursor, setCursor] = createSignal(0);
@@ -347,6 +347,11 @@ export function Tree() {
         case Commands.STATUS_FILTER_RESET:
           if (state.statusFilter !== "all") {
             resetStatusFilter();
+          }
+          break;
+        case Commands.RESOURCE_INFO_OPEN:
+          if (state.selectedResource) {
+            openModal("resourceInfo");
           }
           break;
       }

@@ -58,6 +58,21 @@ export interface TiltStreams {
   session: Stream<SessionUpdate, void>;
 }
 
+/** Narrow types for tilt dump engine output (unstable format, keep minimal). */
+export interface EngineDumpManifest {
+  Name: string;
+  ResourceDependencies: string[] | null;
+}
+
+export interface EngineDumpManifestTarget {
+  Manifest: EngineDumpManifest;
+}
+
+export interface EngineDump {
+  DesiredTiltfilePath?: string;
+  ManifestTargets: Record<string, EngineDumpManifestTarget>;
+}
+
 export class TiltClient {
   private baseURL: string;
   private wsURL: string;
@@ -428,9 +443,11 @@ export class TiltClient {
       stderr: "pipe",
     });
 
-    const output = await new Response(proc.stdout).text();
-    const errorOutput = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
+    const [output, errorOutput, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     if (exitCode !== 0) {
       throw new Error(
@@ -440,6 +457,51 @@ export class TiltClient {
 
     const parsed = JSON.parse(output);
     return { items: parsed.items ?? [] };
+  }
+
+  /**
+   * Fetch the engine state via tilt dump engine CLI.
+   * Returns a narrowly typed subset of the unstable dump format.
+   */
+  async dumpEngine(): Promise<EngineDump> {
+    const tiltBinary = Bun.which("tilt");
+    if (!tiltBinary) {
+      throw new Error("unable to locate tilt binary in your environment");
+    }
+
+    const port = new URL(this.baseURL).port || "10350";
+    const host = new URL(this.baseURL).hostname || "localhost";
+
+    const proc = Bun.spawn(
+      [tiltBinary, "dump", "engine", "--host", host, "--port", port],
+      {
+        env: {
+          ...process.env,
+          TILT_DISABLE_ANALYTICS: "true",
+          DO_NOT_TRACK: "true",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+
+    const [output, errorOutput, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    if (exitCode !== 0) {
+      throw new Error(
+        `tilt dump engine failed (exit ${exitCode}): ${errorOutput}`,
+      );
+    }
+
+    const parsed = JSON.parse(output);
+    return {
+      DesiredTiltfilePath: parsed.DesiredTiltfilePath,
+      ManifestTargets: parsed.ManifestTargets ?? {},
+    };
   }
 
   /**

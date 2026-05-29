@@ -6,6 +6,7 @@
 - logs
   - log clearing doens't work
 - resource picker search doens't prioritize exact match.
+- selecting large blocks often fails to copy
 
 # ROADMAP
 
@@ -26,3 +27,5 @@
   - on text selection
   - on resource failed
   - on all resources complete
+- tilt snapshots (load/save)
+- collapse/expand all in tree-view
