@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { EngineDump } from "./client";
 import {
-  asciiDependencyTreeLines,
   asciiDependencyTreeRows,
   buildDependencyTreeRows,
   collectDependencies,
@@ -99,19 +98,6 @@ describe("asciiDependencyTreeRows", () => {
     expect(cycleRow?.resourceName).toBe("a");
     expect(rows.some((r) => dependencyLineDisplayText(r).includes("(cycle)")))
       .toBe(true);
-  });
-});
-
-describe("asciiDependencyTreeLines", () => {
-  it("delegates to rows text only", () => {
-    const dump = createDump({
-      app: ["db"],
-      db: [],
-    });
-    const graph = collectDependencies("app", dump);
-    expect(asciiDependencyTreeLines("app", graph)).toEqual(
-      asciiDependencyTreeRows("app", graph).map(dependencyLineDisplayText),
-    );
   });
 });
 

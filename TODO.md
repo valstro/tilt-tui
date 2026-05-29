@@ -27,5 +27,6 @@
   - on text selection
   - on resource failed
   - on all resources complete
+
 - tilt snapshots (load/save)
 - collapse/expand all in tree-view

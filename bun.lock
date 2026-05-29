@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@valstro-internal/tilt-tui",
+      "name": "tilt-tui-opentui",
       "dependencies": {
         "@opentui/core": "0.1.97",
         "@opentui/solid": "0.1.97",
@@ -11,7 +11,7 @@
         "solid-js": "1.9.9",
       },
       "devDependencies": {
-        "@types/bun": "1.3.12",
+        "@types/bun": "latest",
         "@types/node": "25.2.0",
         "knip": "5.82.1",
         "prettier": "3.8.1",

@@ -99,14 +99,6 @@ export function asciiDependencyTreeRows(
   recur(rootName, "", true, new Set(), true);
   return rows;
 }
-
-export function asciiDependencyTreeLines(
-  rootName: string,
-  graph: DependencyGraph,
-): string[] {
-  return asciiDependencyTreeRows(rootName, graph).map(dependencyLineDisplayText);
-}
-
 export function buildDependencyTreeRows(
   resourceName: string,
   dump: EngineDump,

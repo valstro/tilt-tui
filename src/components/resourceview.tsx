@@ -113,12 +113,6 @@ export function ResourceView() {
           }
           break;
         }
-        case Commands.RESOURCE_INFO_OPEN: {
-          if (state.selectedResource) {
-            openModal("resourceInfo");
-          }
-          break;
-        }
       }
     },
     // Disable keyboard handling when search modal is open

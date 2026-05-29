@@ -18,7 +18,6 @@ import {
   buildDependencyTreeRows,
   type DependencyTreeLine,
 } from "../tilt/engine-dump-deps";
-import { findResourceByName } from "@/utils/resource-lookup";
 import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
 import { DependencyTreeRow } from "./dependency-tree-row";
 
@@ -153,9 +152,8 @@ export function ResourceInfoModal(props: ResourceInfoModalProps) {
                     line={line}
                     resource={
                       line.resourceName
-                        ? findResourceByName(
-                            state.resources,
-                            line.resourceName,
+                        ? state.resources.find(
+                            (r) => r.name === line.resourceName,
                           )
                         : undefined
                     }

@@ -66,11 +66,10 @@ export const keymap: KeyMapping[] = [
     description: "watcher info",
   },
   {
-    modes: ["tree", "resource"],
+    modes: ["app"],
     key: "i",
     command: Commands.RESOURCE_INFO_OPEN,
     description: "resource info",
-    showInHelpAs: "info",
   },
 
   // Shared navigation (tree + resource)
