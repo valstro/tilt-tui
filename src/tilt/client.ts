@@ -19,6 +19,7 @@ import {
   type Stream,
   type Signal,
 } from "effection";
+import { runTiltCli, TiltBinaryNotFoundError, TiltCliError } from "./tilt-cli";
 
 const DEFAULT_HOST = "localhost";
 const DEFAULT_PORT = 10350;
@@ -58,15 +59,32 @@ export interface TiltStreams {
   session: Stream<SessionUpdate, void>;
 }
 
+/** Narrow types for tilt dump engine output (unstable format, keep minimal). */
+export interface EngineDumpManifest {
+  name: string;
+  resourceDependencies: string[] | null;
+}
+
+export interface EngineDumpManifestTarget {
+  manifest: EngineDumpManifest;
+}
+
+export interface EngineDump {
+  desiredTiltfilePath?: string;
+  manifestTargets: Record<string, EngineDumpManifestTarget>;
+}
+
 export class TiltClient {
   private baseURL: string;
   private wsURL: string;
+  private host: string;
+  private port: number;
 
   constructor(options: TiltClientOptions = {}) {
-    const host = options.host ?? DEFAULT_HOST;
-    const port = options.port ?? DEFAULT_PORT;
-    this.baseURL = `http://${host}:${port}`;
-    this.wsURL = `ws://${host}:${port}`;
+    this.host = options.host ?? DEFAULT_HOST;
+    this.port = options.port ?? DEFAULT_PORT;
+    this.baseURL = `http://${this.host}:${this.port}`;
+    this.wsURL = `ws://${this.host}:${this.port}`;
   }
 
   /**
@@ -221,59 +239,24 @@ export class TiltClient {
   }
 
   async getTiltArgs(): Promise<Record<string, string | boolean | undefined>> {
-    // use the following command to get tilt getTiltArgs
-    // parse the args and return as a Record<string, string>
-    //
-    // ❯ EDITOR=cat tilt args
-    // # edit args for the running Tilt here
-    // --environment FOO --reset-nx-cache
-    // Tilt is already running with those args -- no action taken
-
-    const tiltBinary = Bun.which("tilt");
-    if (!tiltBinary) {
-      console.error("unable to locate tilt binary in your environment");
-      return {};
-    }
-
-    const proc = Bun.spawn([tiltBinary, "args"], {
-      env: {
-        ...process.env,
-        // tilt args will open interactive editor if you don't change it
-        // cat will dump the contents of the temp file tilt args creates
-        EDITOR: "cat",
-        TILT_DISABLE_ANALYTICS: "true",
-        DO_NOT_TRACK: "true",
-      },
-
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const output = await new Response(proc.stdout).text();
-    const errorOutput = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
-
-    if (exitCode !== 0) {
-      console.error("tilt args failed", exitCode, output, errorOutput);
-      return {};
-    }
-
-    // tilt args are on second line of output
-    const argsLine = output.split("\n")[1];
-    const args = argsLine.split(" ");
-
-    // TODO: expected args as config?
     try {
+      // EDITOR=cat so tilt dumps the temp file instead of opening an editor
+      const { stdout } = await runTiltCli({
+        args: ["args"],
+        env: { EDITOR: "cat" },
+      });
+
+      // tilt args are on second line of output
+      const argsLine = stdout.split("\n")[1];
+      const args = argsLine.split(" ");
+
+      // TODO: expected args as config?
       const tiltArgs = parseArgs({
         args,
         strict: false,
         options: {
-          environment: {
-            type: "string",
-          },
-          profile: {
-            type: "string",
-          },
+          environment: { type: "string" },
+          profile: { type: "string" },
         },
       });
 
@@ -282,7 +265,11 @@ export class TiltClient {
         profile: tiltArgs.values.profile,
       };
     } catch (e) {
-      console.error("error parsing tilt args", e);
+      if (e instanceof TiltBinaryNotFoundError || e instanceof TiltCliError) {
+        console.error(e.message);
+      } else {
+        console.error("error parsing tilt args", e);
+      }
       return {};
     }
   }
@@ -413,33 +400,47 @@ export class TiltClient {
    * Fetch all FileWatch resources via the tilt CLI
    */
   async getFileWatches(): Promise<APIFileWatchList> {
-    const tiltBinary = Bun.which("tilt");
-    if (!tiltBinary) {
-      throw new Error("unable to locate tilt binary in your environment");
-    }
+    const { stdout } = await runTiltCli({
+      args: ["get", "filewatches", "-o", "json"],
+    });
+    const parsed = JSON.parse(stdout);
+    return { items: parsed.items ?? [] };
+  }
 
-    const proc = Bun.spawn([tiltBinary, "get", "filewatches", "-o", "json"], {
-      env: {
-        ...process.env,
-        TILT_DISABLE_ANALYTICS: "true",
-        DO_NOT_TRACK: "true",
-      },
-      stdout: "pipe",
-      stderr: "pipe",
+  /**
+   * Fetch the engine state via tilt dump engine CLI.
+   * Returns a narrowly typed subset of the unstable dump format.
+   */
+  async dumpEngine(): Promise<EngineDump> {
+    const { stdout } = await runTiltCli({
+      args: [
+        "dump",
+        "engine",
+        "--host",
+        this.host,
+        "--port",
+        String(this.port),
+      ],
     });
 
-    const output = await new Response(proc.stdout).text();
-    const errorOutput = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
-
-    if (exitCode !== 0) {
-      throw new Error(
-        `tilt get filewatches failed (exit ${exitCode}): ${errorOutput}`,
-      );
+    const parsed = JSON.parse(stdout);
+    const rawTargets: Record<string, Record<string, unknown>> =
+      parsed.ManifestTargets ?? {};
+    const manifestTargets: EngineDump["manifestTargets"] = {};
+    for (const [key, val] of Object.entries(rawTargets)) {
+      const m = val.Manifest as Record<string, unknown> | undefined;
+      manifestTargets[key] = {
+        manifest: {
+          name: (m?.Name as string) ?? key,
+          resourceDependencies:
+            (m?.ResourceDependencies as string[] | null) ?? null,
+        },
+      };
     }
-
-    const parsed = JSON.parse(output);
-    return { items: parsed.items ?? [] };
+    return {
+      desiredTiltfilePath: parsed.DesiredTiltfilePath,
+      manifestTargets,
+    };
   }
 
   /**

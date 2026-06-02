@@ -8,6 +8,7 @@ import { useListNavigation } from "@/hooks/useListNavigation";
 import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { ModalFilterInput } from "./modal/modal-filter-input";
+import { ResourceStatusDot } from "./resource-status-dot";
 import { useTilt } from "../context/tilt";
 import { useFocus } from "../context/focus";
 import { type Resource } from "../tilt/types";
@@ -176,15 +177,6 @@ export function ResourcePicker(props: ResourcePickerProps) {
                   {(option) => {
                     const isSelected = () =>
                       option.resource.name === selected()?.resource.name;
-                    const status = () => getEffectiveStatus(option.resource);
-                    const dotColor = () =>
-                      isSelected()
-                        ? theme.background
-                        : getBlinkingColor(
-                            status(),
-                            option.resource.isBuilding,
-                            option.resource.isDisabled,
-                          );
 
                     return (
                       <box
@@ -196,7 +188,12 @@ export function ResourcePicker(props: ResourcePickerProps) {
                         paddingRight={2}
                         gap={1}
                       >
-                        <text fg={dotColor()}>{"\u25CF"}</text>
+                        <ResourceStatusDot
+                          theme={theme}
+                          getBlinkingColor={getBlinkingColor}
+                          resource={option.resource}
+                          selected={isSelected()}
+                        />
                         <text
                           flexGrow={1}
                           fg={isSelected() ? theme.background : theme.text}

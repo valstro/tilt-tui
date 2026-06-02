@@ -18,6 +18,7 @@ import { ResourcePicker } from "./components/resource-picker";
 import { KeyboardHelp } from "./components/keyboard-help";
 import { ButtonFormModal } from "./components/button-form-modal";
 import { EngineInfo } from "./components/engine-info";
+import { ResourceInfoModal } from "./components/resource-info-modal";
 import { useTheme } from "./hooks/useTheme";
 import { useKeyHandler } from "./keyboard/useKeyHandler";
 import { Commands } from "./commands";
@@ -84,6 +85,11 @@ function AppContent() {
         break;
       case Commands.ENGINE_INFO_OPEN:
         openModal("engineInfo");
+        break;
+      case Commands.RESOURCE_INFO_OPEN:
+        if (state.selectedResource) {
+          openModal("resourceInfo");
+        }
         break;
       case Commands.RELOAD_RESOURCE:
         if (state.selectedResource) {
@@ -174,6 +180,14 @@ function AppContent() {
       {/* Engine Info overlay */}
       <Show when={activeModal() === "engineInfo"}>
         <EngineInfo onClose={() => closeModal()} />
+      </Show>
+
+      {/* Resource Info overlay */}
+      <Show when={activeModal() === "resourceInfo" && state.selectedResource}>
+        <ResourceInfoModal
+          resourceName={state.selectedResource!}
+          onClose={() => closeModal()}
+        />
       </Show>
 
       {/* Header - only shown when sidebar is hidden */}

@@ -41,6 +41,9 @@ export const Commands = {
   // Engine info
   ENGINE_INFO_OPEN: "engine.info.open",
 
+  // Resource info
+  RESOURCE_INFO_OPEN: "resource.info.open",
+
   // Log search/filter
   LOG_SEARCH_OPEN: "logs.search.open",
   LOG_SEARCH_CLEAR: "logs.search.clear",
