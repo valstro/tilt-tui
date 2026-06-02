@@ -11,16 +11,16 @@ function createDump(
   manifests: Record<string, string[]>,
   tiltfilePath?: string,
 ): EngineDump {
-  const ManifestTargets: EngineDump["ManifestTargets"] = {};
+  const manifestTargets: EngineDump["manifestTargets"] = {};
   for (const [name, deps] of Object.entries(manifests)) {
-    ManifestTargets[name] = {
-      Manifest: {
-        Name: name,
-        ResourceDependencies: deps,
+    manifestTargets[name] = {
+      manifest: {
+        name: name,
+        resourceDependencies: deps,
       },
     };
   }
-  return { ManifestTargets, DesiredTiltfilePath: tiltfilePath };
+  return { manifestTargets, desiredTiltfilePath: tiltfilePath };
 }
 
 describe("collectDependencies", () => {
@@ -96,8 +96,9 @@ describe("asciiDependencyTreeRows", () => {
       dependencyLineDisplayText(r).includes("(cycle)"),
     );
     expect(cycleRow?.resourceName).toBe("a");
-    expect(rows.some((r) => dependencyLineDisplayText(r).includes("(cycle)")))
-      .toBe(true);
+    expect(
+      rows.some((r) => dependencyLineDisplayText(r).includes("(cycle)")),
+    ).toBe(true);
   });
 });
 
@@ -108,7 +109,9 @@ describe("buildDependencyTreeRows", () => {
     expect(result).not.toBeNull();
     expect(result!.every((r) => r.resourceName === null)).toBe(true);
     expect(
-      result!.some((ln) => dependencyLineDisplayText(ln).includes("/path/Tiltfile")),
+      result!.some((ln) =>
+        dependencyLineDisplayText(ln).includes("/path/Tiltfile"),
+      ),
     ).toBe(true);
   });
 

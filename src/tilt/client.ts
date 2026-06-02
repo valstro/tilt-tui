@@ -61,30 +61,30 @@ export interface TiltStreams {
 
 /** Narrow types for tilt dump engine output (unstable format, keep minimal). */
 export interface EngineDumpManifest {
-  Name: string;
-  ResourceDependencies: string[] | null;
+  name: string;
+  resourceDependencies: string[] | null;
 }
 
 export interface EngineDumpManifestTarget {
-  Manifest: EngineDumpManifest;
+  manifest: EngineDumpManifest;
 }
 
 export interface EngineDump {
-  DesiredTiltfilePath?: string;
-  ManifestTargets: Record<string, EngineDumpManifestTarget>;
+  desiredTiltfilePath?: string;
+  manifestTargets: Record<string, EngineDumpManifestTarget>;
 }
 
 export class TiltClient {
   private baseURL: string;
   private wsURL: string;
   private host: string;
-  private port: string;
+  private port: number;
 
   constructor(options: TiltClientOptions = {}) {
     this.host = options.host ?? DEFAULT_HOST;
     this.port = options.port ?? DEFAULT_PORT;
-    this.baseURL = `http://${host}:${port}`;
-    this.wsURL = `ws://${host}:${port}`;
+    this.baseURL = `http://${this.host}:${this.port}`;
+    this.wsURL = `ws://${this.host}:${this.port}`;
   }
 
   /**
@@ -413,13 +413,33 @@ export class TiltClient {
    */
   async dumpEngine(): Promise<EngineDump> {
     const { stdout } = await runTiltCli({
-      args: ["dump", "engine", "--host", this.host, "--port", this.port],
+      args: [
+        "dump",
+        "engine",
+        "--host",
+        this.host,
+        "--port",
+        String(this.port),
+      ],
     });
 
     const parsed = JSON.parse(stdout);
+    const rawTargets: Record<string, Record<string, unknown>> =
+      parsed.ManifestTargets ?? {};
+    const manifestTargets: EngineDump["manifestTargets"] = {};
+    for (const [key, val] of Object.entries(rawTargets)) {
+      const m = val.Manifest as Record<string, unknown> | undefined;
+      manifestTargets[key] = {
+        manifest: {
+          name: (m?.Name as string) ?? key,
+          resourceDependencies:
+            (m?.ResourceDependencies as string[] | null) ?? null,
+        },
+      };
+    }
     return {
-      DesiredTiltfilePath: parsed.DesiredTiltfilePath,
-      ManifestTargets: parsed.ManifestTargets ?? {},
+      desiredTiltfilePath: parsed.DesiredTiltfilePath,
+      manifestTargets,
     };
   }
 

@@ -34,8 +34,8 @@ export function collectDependencies(
     if (visited.has(name)) continue;
     visited.add(name);
 
-    const target = dump.ManifestTargets[name];
-    const deps = target?.Manifest?.ResourceDependencies ?? [];
+    const target = dump.manifestTargets[name];
+    const deps = target?.manifest?.resourceDependencies ?? [];
 
     nodes.set(name, { name, deps });
 
@@ -104,7 +104,7 @@ export function buildDependencyTreeRows(
   dump: EngineDump,
 ): DependencyTreeLine[] | null {
   if (resourceName === "(Tiltfile)") {
-    const path = dump.DesiredTiltfilePath ?? "unknown";
+    const path = dump.desiredTiltfilePath ?? "unknown";
     return [
       { textLeft: "Tiltfile", resourceName: null },
       { textLeft: `Path: ${path}`, resourceName: null },
@@ -113,7 +113,7 @@ export function buildDependencyTreeRows(
     ];
   }
 
-  if (!dump.ManifestTargets[resourceName]) {
+  if (!dump.manifestTargets[resourceName]) {
     return null;
   }
 
