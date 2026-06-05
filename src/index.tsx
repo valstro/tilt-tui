@@ -11,6 +11,12 @@ import { setGlobalRenderer, getGlobalRenderer } from "./global-renderer";
 
 const config = parseCLI();
 
+if (config.kind === "logs") {
+  const { dumpLogs } = await import("./tilt/dump-logs");
+  await dumpLogs(config);
+  process.exit(0);
+}
+
 if (config.spawnProcess) {
   if (await isTiltRunning()) {
     console.error("Another tilt instance is already running");
