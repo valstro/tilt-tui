@@ -54,6 +54,7 @@ k8s_resource(
     'api',
     port_forwards='5734:5000',
     labels=['backend'],
+    resource_deps=['echo 1', 'echo 2'],
     links=[
       link('https://google.com', 'goog search'),
       link('https://bing.com', 'bing search'),
@@ -184,6 +185,7 @@ k8s_resource(
     'web',
     port_forwards='5735:5173', # 5173 is the port Vite listens on in the container
     labels=['frontend'],
+    resource_deps=['api', 'echo 3'],
     links=[
       link('https://google.com', 'goog search'),
       link('https://bing.com', 'bing search'),
@@ -300,6 +302,7 @@ local_resource(
     'cmd-button-stress',
     cmd='echo "Ready for stress testing via cmd_button"',
     auto_init=True,
+    resource_deps=['echo 1'],
     labels=['stress-test']
 )
 
@@ -357,15 +360,15 @@ cmd_button('continuous-stream',
 # =============================================================================
 
 local_resource('echo 1', cmd='echo foo', auto_init=False, trigger_mode=TRIGGER_MODE_MANUAL)
-local_resource('echo 2', cmd='echo foo')
-local_resource('echo 3', cmd='echo foo')
-local_resource('echo 4', cmd='echo foo')
+local_resource('echo 2', cmd='echo foo', resource_deps=['echo 5'])
+local_resource('echo 3', cmd='echo foo', resource_deps=['echo 4', 'echo 6'])
+local_resource('echo 4', cmd='echo foo', resource_deps=['echo 5'])
 local_resource('echo 5', cmd='while :; do sleep 2073600; done')
-local_resource('echo 6', cmd='echo foo')
+local_resource('echo 6', cmd='echo foo', resource_deps=['echo 7', 'echo 8'])
 local_resource('echo 7', cmd='echo foo')
-local_resource('echo 8', cmd='echo foo')
+local_resource('echo 8', cmd='echo foo', resource_deps=['echo 9'])
 local_resource('echo 9', cmd='echo foo')
-local_resource('echo 10', cmd='echo foo')
+local_resource('echo 10', cmd='echo foo', resource_deps=['echo 1'])
 local_resource('echo 11', cmd='echo foo')
 local_resource('echo 12', cmd='echo foo')
 local_resource('echo 13', cmd='echo foo')
