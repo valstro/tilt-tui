@@ -1,120 +1,63 @@
+import { run, each, spawn, type Operation } from "effection";
 import type { LogsConfig } from "../cli";
-import type { APIViewResponse, APILogList, APILogSegment } from "./api-types";
-
-interface SpanInfo {
-  manifestName: string;
-}
+import { TiltClient } from "./client";
+import LogStore from "./logstore2";
+import { logLinesToString } from "./log-utils";
 
 export async function dumpLogs(config: LogsConfig): Promise<void> {
-  const baseURL = `http://${config.host}:${config.port}`;
-  const wsURL = `ws://${config.host}:${config.port}`;
+  const client = new TiltClient({ host: config.host, port: config.port });
 
-  let token: string;
-  try {
-    const resp = await fetch(`${baseURL}/api/websocket_token`);
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}`);
-    }
-    token = await resp.text();
-  } catch (err) {
+  const healthy = await client.checkHealth();
+  if (!healthy) {
     console.error(
-      `Failed to connect to Tilt at ${baseURL} — is Tilt running?`,
+      `Failed to connect to Tilt at ${config.host}:${config.port} — is Tilt running?`,
     );
     process.exit(1);
   }
 
-  const url = `${wsURL}/ws/view?csrf=${encodeURIComponent(token)}`;
-  const ws = new WebSocket(url);
+  const logStore = new LogStore();
+  let checkpoint = 0;
 
-  const allSpans = new Map<string, SpanInfo>();
-  let gotInitialLogs = false;
+  const task = run(function* (): Operation<void> {
+    const streams = yield* client.useTiltStreams();
 
-  ws.onmessage = (event) => {
-    try {
-      const viewResp: APIViewResponse = JSON.parse(event.data);
+    // Drain resource stream so the WebSocket stays healthy,
+    // but we only care about logs.
+    yield* spawn(function* () {
+      for (const _ of yield* each(streams.resources)) {
+        yield* each.next();
+      }
+    });
 
-      if (viewResp.logList) {
-        mergeSpans(allSpans, viewResp.logList);
-        const lines = formatSegments(
-          viewResp.logList,
-          allSpans,
-          config.resource,
+    for (const update of yield* each(streams.logs)) {
+      logStore.append(update.logList);
+
+      const showPrefix = !config.resource;
+      const patch = config.resource
+        ? logStore.manifestLogPatchSet(config.resource, checkpoint)
+        : logStore.allLogPatchSet(checkpoint);
+
+      checkpoint = patch.checkpoint;
+
+      if (patch.lines.length > 0) {
+        process.stdout.write(
+          logLinesToString(patch.lines, showPrefix) + "\n",
         );
-        if (lines.length > 0) {
-          process.stdout.write(lines.join("\n") + "\n");
-        }
       }
 
-      // In non-follow mode, the first complete response is enough.
-      // Tilt sends isComplete=true when the initial snapshot is done.
-      if (!config.follow && viewResp.isComplete && !gotInitialLogs) {
-        gotInitialLogs = true;
-        ws.close();
-      }
-    } catch (err) {
-      console.error("Failed to parse WebSocket message:", err);
-    }
-  };
+      if (!config.follow) return;
 
-  ws.onerror = () => {
-    console.error(`WebSocket error connecting to ${wsURL}`);
-    process.exit(1);
-  };
-
-  return new Promise<void>((resolve) => {
-    ws.onclose = () => {
-      resolve();
-    };
-
-    if (config.follow) {
-      const onSignal = () => {
-        ws.close();
-      };
-      process.on("SIGINT", onSignal);
-      process.on("SIGTERM", onSignal);
+      yield* each.next();
     }
   });
-}
 
-function mergeSpans(
-  allSpans: Map<string, SpanInfo>,
-  logList: APILogList,
-): void {
-  if (!logList.spans) return;
-  for (const [spanId, span] of Object.entries(logList.spans)) {
-    if (span?.manifestName) {
-      allSpans.set(spanId, { manifestName: span.manifestName });
-    }
-  }
-}
-
-function formatSegments(
-  logList: APILogList,
-  allSpans: Map<string, SpanInfo>,
-  resourceFilter: string,
-): string[] {
-  if (!logList.segments) return [];
-
-  const lines: string[] = [];
-  for (const seg of logList.segments) {
-    const manifestName = seg.spanId
-      ? (allSpans.get(seg.spanId)?.manifestName ?? "")
-      : "";
-
-    if (resourceFilter && manifestName !== resourceFilter) continue;
-
-    let text = seg.text;
-    if (text.endsWith("\n")) text = text.slice(0, -1);
-    if (!text) continue;
-
-    // Handle carriage returns like the LogStore does
-    if (text.includes("\r")) {
-      const lastCR = text.lastIndexOf("\r");
-      text = text.substring(lastCR + 1);
-    }
-
-    lines.push(text);
+  if (config.follow) {
+    const halt = () => {
+      task.halt();
+    };
+    process.on("SIGINT", halt);
+    process.on("SIGTERM", halt);
   }
 
-  return lines;
+  await task;
 }
