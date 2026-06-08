@@ -186,3 +186,44 @@ export function stripAnsi(text: string): string {
 export function displayWidth(text: string): number {
   return stripAnsi(text).length;
 }
+
+/**
+ * Slice text by visual (display) position rather than raw string index.
+ * ANSI escape codes are skipped when counting positions, so visual
+ * coordinates from the rendered output map correctly to the underlying text.
+ * Returns plain text (ANSI codes stripped from the result).
+ */
+export function sliceByDisplayPosition(
+  text: string,
+  start: number,
+  end?: number,
+): string {
+  const result: string[] = [];
+  let visualPos = 0;
+  let inEscape = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (char === "\x1B") {
+      inEscape = true;
+      continue;
+    }
+    if (inEscape) {
+      if (char === "m") {
+        inEscape = false;
+      }
+      continue;
+    }
+
+    if (end !== undefined && visualPos >= end) break;
+
+    if (visualPos >= start) {
+      result.push(char);
+    }
+
+    visualPos++;
+  }
+
+  return result.join("");
+}
