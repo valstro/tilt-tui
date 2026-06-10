@@ -37,6 +37,8 @@ import {
   type LogSearchFilter,
 } from "./log-buffer";
 import { parseAnsi } from "../utils/ansi-parser";
+import { extractSelectedText } from "./log-selection";
+import { copyToClipboard } from "../utils/clipboard";
 import type LogStore from "../tilt/logstore2";
 import { LogUpdateAction, type LogUpdateEvent } from "../tilt/logstore2";
 import { Theme } from "../theme/theme";
@@ -143,6 +145,9 @@ class SelectableLogFrameBuffer extends FrameBufferRenderable {
 
   override onSelectionChanged(sel: TUISelection | null): boolean {
     if (!sel) {
+      this._localSelection = null;
+      this._prevWasDragging = false;
+      this.onSelectionChange(null, false);
       return false;
     }
 
@@ -179,42 +184,7 @@ class SelectableLogFrameBuffer extends FrameBufferRenderable {
     const rows = this.getVisibleRows();
     const { anchorX, anchorY, focusX, focusY } = this._localSelection;
 
-    if (anchorX === focusX && anchorY === focusY) return "";
-
-    // Normalize to reading order (top-left to bottom-right)
-    let startY = anchorY,
-      startX = anchorX,
-      endY = focusY,
-      endX = focusX;
-    if (startY > endY || (startY === endY && startX > endX)) {
-      [startY, endY] = [endY, startY];
-      [startX, endX] = [endX, startX];
-    }
-
-    const lines: string[] = [];
-    for (
-      let y = Math.max(0, startY);
-      y <= Math.min(rows.length - 1, endY);
-      y++
-    ) {
-      const row = rows[y];
-      const text = row.text;
-
-      if (y === startY && y === endY) {
-        // Single row selection
-        lines.push(
-          text.slice(Math.max(0, startX), Math.min(text.length, endX + 1)),
-        );
-      } else if (y === startY) {
-        lines.push(text.slice(Math.max(0, startX)));
-      } else if (y === endY) {
-        lines.push(text.slice(0, Math.min(text.length, endX + 1)));
-      } else {
-        lines.push(text);
-      }
-    }
-
-    return lines.join("\n");
+    return extractSelectedText(rows, anchorX, anchorY, focusX, focusY);
   }
 
   private isSelectionCollapsed(): boolean {
@@ -278,6 +248,10 @@ export function LogBufferView(
   // Selection state for rendering
   let localSelection: LocalSelectionBounds | null = null;
 
+  // Track whether auto-scroll was enabled before a drag selection started,
+  // so we can restore it after the selection ends.
+  let autoScrollBeforeSelection: boolean | null = null;
+
   // Scroll lines per wheel event
   const scrollLinesPerWheel =
     props.scrollLinesPerWheel ?? DEFAULT_SCROLL_WHEEL_LINES;
@@ -333,17 +307,30 @@ export function LogBufferView(
       },
       onSelectionChange: (
         selection: LocalSelectionBounds | null,
-        _isDragging: boolean,
+        isDragging: boolean,
       ) => {
+        // Pause auto-scroll while dragging to prevent viewport shifts
+        if (isDragging && autoScrollBeforeSelection === null) {
+          autoScrollBeforeSelection = buffer.autoScroll;
+          buffer.autoScroll = false;
+        }
         localSelection = selection;
         setRenderVersion((v) => v + 1);
       },
       onSelectionEnd: (text: string) => {
+        // Use subprocess clipboard (bypasses OSC 52 size limits in tmux/terminals).
+        // Fire-and-forget; fall back to OSC 52 synchronously as well in case
+        // the subprocess method isn't available.
+        copyToClipboard(text);
         renderer.copyToClipboardOSC52(text);
-        // Clear selection after copying
+        // Restore auto-scroll state from before the selection
+        if (autoScrollBeforeSelection !== null) {
+          buffer.autoScroll = autoScrollBeforeSelection;
+          autoScrollBeforeSelection = null;
+          props.onAutoScrollChange?.(buffer.autoScroll);
+        }
         localSelection = null;
         setRenderVersion((v) => v + 1);
-        // Notify parent that text was copied
         props.onTextCopied?.(text);
       },
       getVisibleRows: () => buffer.getVisibleRows(),
