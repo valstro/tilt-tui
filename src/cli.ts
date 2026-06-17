@@ -19,7 +19,7 @@ export interface LogsConfig {
 
 export type CLIConfig = TuiConfig | LogsConfig;
 
-let config: CLIConfig | undefined;
+let config: CLIConfig | undefined = undefined;
 
 const upCommand = defineCommand({
   meta: { name: "up", description: "Start tilt and connect to it" },
@@ -80,7 +80,6 @@ const main = defineCommand({
 });
 
 export async function parseCLI(): Promise<CLIConfig> {
-  config = undefined;
   await runMain(main);
   return config!;
 }
