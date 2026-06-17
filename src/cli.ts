@@ -1,3 +1,5 @@
+import { defineCommand, runMain } from "citty";
+
 export interface TuiConfig {
   kind: "tui";
   spawnProcess: boolean;
@@ -17,72 +19,68 @@ export interface LogsConfig {
 
 export type CLIConfig = TuiConfig | LogsConfig;
 
-const HELP = `
-tilt-tui - A terminal UI for Tilt
+let config: CLIConfig | undefined;
 
-Usage:
-  tilt-tui                        Connect to an already-running tilt instance
-  tilt-tui up [args…]             Start tilt and connect to it
-  tilt-tui logs [resource]        Dump logs from a running tilt instance
+const upCommand = defineCommand({
+  meta: { name: "up", description: "Start tilt and connect to it" },
+  run({ rawArgs }) {
+    config = { kind: "tui", spawnProcess: true, tiltArgs: rawArgs };
+  },
+});
 
-Options:
-  -h, --help                      Show this help message
+const logsCommand = defineCommand({
+  meta: { name: "logs", description: "Dump logs from a running tilt instance" },
+  args: {
+    resource: {
+      type: "positional",
+      description: "Resource name to filter logs for",
+      required: false,
+      default: "",
+    },
+    follow: {
+      type: "boolean",
+      alias: "f",
+      description: "Stream new logs continuously",
+      default: false,
+    },
+    host: {
+      type: "string",
+      description: "Tilt API host",
+      default: "localhost",
+    },
+    port: {
+      type: "string",
+      description: "Tilt API port",
+      default: "10350",
+    },
+  },
+  run({ args }) {
+    config = {
+      kind: "logs",
+      resource: args.resource,
+      follow: args.follow,
+      host: args.host,
+      port: parseInt(args.port, 10),
+    };
+  },
+});
 
-Logs options:
-  -f, --follow                    Stream new logs continuously
-  --host <host>                   Tilt API host (default: localhost)
-  --port <port>                   Tilt API port (default: 10350)
-
-Examples:
-  tilt-tui                          Connect to tilt on localhost:10350
-  tilt-tui up                       Start tilt with default settings
-  tilt-tui up --port 10351          Start tilt on a custom port
-  tilt-tui up -- --foo=bar          Pass Tiltfile args after --
-  tilt-tui logs                     Dump all logs
-  tilt-tui logs my-service          Dump logs for my-service
-  tilt-tui logs my-service -f       Stream logs for my-service
-  tilt-tui logs --port 10351        Dump logs from tilt on custom port
-`.trim();
-
-export function parseCLI(): CLIConfig {
-  const rawArgs = process.argv.slice(2);
-
-  if (rawArgs.includes("-h") || rawArgs.includes("--help")) {
-    console.log(HELP);
-    process.exit(0);
-  }
-
-  const logsIndex = rawArgs.indexOf("logs");
-  if (logsIndex !== -1) {
-    return parseLogsCommand(rawArgs.slice(logsIndex + 1));
-  }
-
-  const upIndex = rawArgs.indexOf("up");
-  if (upIndex === -1) return { kind: "tui", spawnProcess: false, tiltArgs: [] };
-
-  const tiltArgs = rawArgs.slice(upIndex + 1);
-  return { kind: "tui", spawnProcess: true, tiltArgs };
-}
-
-function parseLogsCommand(args: string[]): LogsConfig {
-  let resource = "";
-  let follow = false;
-  let host = "localhost";
-  let port = 10350;
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === "-f" || arg === "--follow") {
-      follow = true;
-    } else if (arg === "--host") {
-      host = args[++i] ?? host;
-    } else if (arg === "--port") {
-      const p = parseInt(args[++i], 10);
-      if (!isNaN(p)) port = p;
-    } else if (!arg.startsWith("-")) {
-      resource = arg;
+const main = defineCommand({
+  meta: {
+    name: "tilt-tui",
+    version: "0.3.0",
+    description: "A terminal UI for Tilt",
+  },
+  subCommands: { up: upCommand, logs: logsCommand },
+  run() {
+    if (!config) {
+      config = { kind: "tui", spawnProcess: false, tiltArgs: [] };
     }
-  }
+  },
+});
 
-  return { kind: "logs", resource, follow, host, port };
+export async function parseCLI(): Promise<CLIConfig> {
+  config = undefined;
+  await runMain(main);
+  return config!;
 }

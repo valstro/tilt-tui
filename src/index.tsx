@@ -9,7 +9,7 @@ import { parseCLI } from "./cli";
 import { startTiltProcess, isTiltRunning } from "./tilt/process";
 import { setGlobalRenderer, getGlobalRenderer } from "./global-renderer";
 
-const config = parseCLI();
+const config = await parseCLI();
 
 if (config.kind === "logs") {
   const { dumpLogs } = await import("./tilt/dump-logs");
