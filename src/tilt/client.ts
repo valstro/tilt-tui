@@ -242,7 +242,7 @@ export class TiltClient {
     try {
       // EDITOR=cat so tilt dumps the temp file instead of opening an editor
       const { stdout } = await runTiltCli({
-        args: ["args"],
+        args: ["args", "--host", this.host, "--port", String(this.port)],
         env: { EDITOR: "cat" },
       });
 
@@ -401,7 +401,16 @@ export class TiltClient {
    */
   async getFileWatches(): Promise<APIFileWatchList> {
     const { stdout } = await runTiltCli({
-      args: ["get", "filewatches", "-o", "json"],
+      args: [
+        "get",
+        "filewatches",
+        "-o",
+        "json",
+        "--host",
+        this.host,
+        "--port",
+        String(this.port),
+      ],
     });
     const parsed = JSON.parse(stdout);
     return { items: parsed.items ?? [] };

@@ -5,7 +5,10 @@ export interface TuiConfig {
   spawnProcess: boolean;
   /** Everything after "up" -- passed verbatim to `tilt up`. */
   tiltArgs: string[];
+  port: number;
 }
+
+const DEFAULT_TILT_PORT = 10350;
 
 export interface LogsConfig {
   kind: "logs";
@@ -24,7 +27,12 @@ let config: CLIConfig | undefined = undefined;
 const upCommand = defineCommand({
   meta: { name: "up", description: "Start tilt and connect to it" },
   run({ rawArgs }) {
-    config = { kind: "tui", spawnProcess: true, tiltArgs: rawArgs };
+    config = {
+      kind: "tui",
+      spawnProcess: true,
+      tiltArgs: rawArgs,
+      port: parsePortFromArgs(rawArgs),
+    };
   },
 });
 
@@ -74,7 +82,12 @@ const main = defineCommand({
   subCommands: { up: upCommand, logs: logsCommand },
   run() {
     if (!config) {
-      config = { kind: "tui", spawnProcess: false, tiltArgs: [] };
+      config = {
+        kind: "tui",
+        spawnProcess: false,
+        tiltArgs: [],
+        port: DEFAULT_TILT_PORT,
+      };
     }
   },
 });
@@ -82,4 +95,18 @@ const main = defineCommand({
 export async function parseCLI(): Promise<CLIConfig> {
   await runMain(main);
   return config!;
+}
+
+function parsePortFromArgs(args: string[]): number {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === "--port" && i + 1 < args.length) {
+      const parsed = parseInt(args[i + 1], 10);
+      if (!Number.isNaN(parsed)) return parsed;
+    } else if (arg.startsWith("--port=")) {
+      const parsed = parseInt(arg.slice("--port=".length), 10);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+  }
+  return DEFAULT_TILT_PORT;
 }

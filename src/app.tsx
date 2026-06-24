@@ -200,9 +200,14 @@ function AppContent() {
   );
 }
 
-export function App() {
+export interface AppProps {
+  host?: string;
+  port?: number;
+}
+
+export function App(props: AppProps) {
   return (
-    <TiltProvider>
+    <TiltProvider host={props.host} port={props.port}>
       <FocusProvider>
         <ToastProvider>
           <AppContent />
