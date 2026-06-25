@@ -467,7 +467,20 @@ export class TiltClient {
       cmd = which("xdg-open") ? "xdg-open" : "wslview";
     }
 
-    spawn([cmd, url], { stdout: "ignore", stderr: "ignore" });
+    try {
+      const proc = spawn([cmd, url], { stdout: "ignore", stderr: "pipe" });
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) {
+        const stderr = await new Response(proc.stderr).text();
+        console.error(
+          `Failed to open URL "${url}": ${cmd} exited with code ${exitCode}${
+            stderr ? `: ${stderr.trim()}` : ""
+          }`,
+        );
+      }
+    } catch (err) {
+      console.error(`Failed to open URL "${url}" with ${cmd}:`, err);
+    }
   }
 }
 

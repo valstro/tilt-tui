@@ -200,6 +200,21 @@ export function formatRelativeTime(timestamp: string): string {
   return t.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+export function formatDuration(durationMs: number): string {
+  if (durationMs < 0) return "";
+
+  if (durationMs < 1000) return `${durationMs}ms`;
+  if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`;
+
+  const mins = Math.floor(durationMs / 60000);
+  const secs = Math.floor((durationMs % 60000) / 1000);
+  if (durationMs < 3600000) return `${mins}m${secs}s`;
+
+  const hours = Math.floor(durationMs / 3600000);
+  const remainingMins = Math.floor((durationMs % 3600000) / 60000);
+  return `${hours}h${remainingMins}m`;
+}
+
 export function formatBuildDuration(
   startTime?: string,
   finishTime?: string,
@@ -208,16 +223,5 @@ export function formatBuildDuration(
 
   const start = new Date(startTime);
   const finish = new Date(finishTime);
-  const duration = finish.getTime() - start.getTime();
-
-  if (duration < 1000) return `${duration}ms`;
-  if (duration < 60000) return `${(duration / 1000).toFixed(1)}s`;
-
-  const mins = Math.floor(duration / 60000);
-  const secs = Math.floor((duration % 60000) / 1000);
-  if (duration < 3600000) return `${mins}m${secs}s`;
-
-  const hours = Math.floor(duration / 3600000);
-  const remainingMins = Math.floor((duration % 3600000) / 60000);
-  return `${hours}h${remainingMins}m`;
+  return formatDuration(finish.getTime() - start.getTime());
 }

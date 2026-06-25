@@ -68,6 +68,39 @@ export function runtimeStatus(r: APIResource): ResourceStatus {
   return ResourceStatus.None;
 }
 
+// Duration (ms) from when the deploy finished rolling out until the runtime
+// reported Ready. Returns undefined when the data needed to compute it is
+// unavailable (e.g. not ready yet, or a non-k8s resource).
+export function runtimeReadinessDurationMs(r: APIResource): number | undefined {
+  const status = r.status || {};
+
+  // Only meaningful once the runtime is actually Ok/ready.
+  if (status.runtimeStatus !== RuntimeStatus.Ok) return undefined;
+
+  const readyCondition = status.conditions?.find((c) => c.type === "Ready");
+  if (!readyCondition || readyCondition.status !== "True") return undefined;
+  const readyAt = new Date(readyCondition.lastTransitionTime).getTime();
+  if (Number.isNaN(readyAt)) return undefined;
+
+  // Start counting from when the latest deploy began rolling out the runtime.
+  const startCandidates = [
+    status.k8sResourceInfo?.podUpdateStartTime,
+    status.k8sResourceInfo?.podCreationTime,
+    status.buildHistory?.[0]?.finishTime,
+    status.lastDeployTime,
+  ];
+
+  for (const candidate of startCandidates) {
+    if (!candidate) continue;
+    const startAt = new Date(candidate).getTime();
+    if (Number.isNaN(startAt)) continue;
+    const duration = readyAt - startAt;
+    if (duration >= 0) return duration;
+  }
+
+  return undefined;
+}
+
 export function getEffectiveStatus(resource: Resource): ResourceStatus {
   if (
     resource.runtimeStatus === ResourceStatus.Unhealthy ||

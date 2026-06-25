@@ -20,6 +20,7 @@ import {
   statusColor,
   formatRelativeTime,
   formatBuildDuration,
+  formatDuration,
   focusBorder,
 } from "../theme/theme";
 import { useTheme } from "@/hooks/useTheme";
@@ -27,7 +28,7 @@ import { Header } from "./header";
 import { PaneHeader } from "./pane-header";
 import { type Resource, ResourceStatus } from "../tilt/types";
 import { Commands } from "@/commands";
-import { getEffectiveStatus } from "@/tilt/status-utils";
+import { getEffectiveStatus, runtimeReadinessDurationMs } from "@/tilt/status-utils";
 import { useBlinkWhenBuilding } from "@/hooks/useBlinkWhenBuilding";
 import { StatusCounts } from "./status-counts";
 import { truncate } from "@/utils/truncate";
@@ -483,6 +484,11 @@ function ResourceNode(props: {
     return formatBuildDuration(lastBuild.startTime, lastBuild.finishTime);
   });
 
+  const readinessDuration = createMemo(() => {
+    const ms = runtimeReadinessDurationMs(r().raw);
+    return ms === undefined ? "" : formatDuration(ms);
+  });
+
   const subheading = createMemo(() => {
     const parts: string[] = [];
     if (lastUpdate()) parts.push(lastUpdate());
@@ -520,12 +526,15 @@ function ResourceNode(props: {
       marginBottom={1}
       backgroundColor={backgroundColor()}
     >
-      {/* Line 1: Resource name - runtime status border */}
+      {/* Line 1: Resource name + runtime readiness duration - runtime status border */}
       <box flexDirection="row" justifyContent="flex-start" gap={1}>
         <text bg={runtimeColor()}> </text>
         <text fg={nameColor()} attributes={props.isSelected ? 1 : 0}>
           {truncate(r().name, 30)}
         </text>
+        <Show when={readinessDuration()}>
+          <text fg={subheadingColor()}>{readinessDuration()}</text>
+        </Show>
       </box>
 
       {/* Line 2: Timestamp + duration - build status border */}
