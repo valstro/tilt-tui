@@ -17,6 +17,7 @@
     "build:binary": "bun run script/build.ts",
     "build:binary:single": "bun run script/build.ts --single",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "knip": "knip"
   },
   "dependencies": {
@@ -31,6 +32,8 @@
     "@types/node": "25.2.0",
     "knip": "5.82.1",
     "prettier": "3.8.1",
-    "typescript": "5.9.3"
-  }
+    "typescript": "5.9.3",
+    "nx": "23.0.1"
+  },
+  "nx": {}
 }
