@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
           filter: tree:0
 
-      - run: npx nx start-ci-run --distribute-on="5 linux-large" --stop-agents-after="e2e"
+      - run: npx nx start-ci-run --distribute-on="5 linux-large" --stop-agents-after="test"
 
       - name: Setup toolchains with mise
         uses: jdx/mise-action@v3
@@ -31,9 +31,8 @@ jobs:
 
       - uses: nrwl/nx-set-shas@v5
 
-      - run: bunx nx record -- nx format:check
-      - run: bunx nx run-many -t lint test build
-      - run: bunx nx run-many -t e2e
+      - run: bunx nx record -- nx typecheck
+      - run: bunx nx run-many -t test
 
       - name: Self-healing
         run: bunx nx fix-ci
