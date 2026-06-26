@@ -533,7 +533,7 @@ function ResourceNode(props: {
           {truncate(r().name, 30)}
         </text>
         <Show when={readinessDuration()}>
-          <text fg={subheadingColor()}>{readinessDuration()}</text>
+          <text fg={subheadingColor()}>· {readinessDuration()}</text>
         </Show>
       </box>
 
