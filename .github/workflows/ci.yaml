@@ -31,9 +31,9 @@ jobs:
 
       - uses: nrwl/nx-set-shas@v5
 
-      - run: bunx nx record -- nx typecheck
-      - run: bunx nx run-many -t test
+      - run: bun nx record -- nx typecheck
+      - run: bun nx run-many -t test
 
       - name: Self-healing
-        run: bunx nx fix-ci
+        run: bun nx fix-ci
         if: always()
