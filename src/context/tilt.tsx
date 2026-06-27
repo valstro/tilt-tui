@@ -348,6 +348,10 @@ export function TiltProvider(
     // Load user settings and configure log filters
     try {
       const settings = await loadUserSettings();
+      if (settings.tiltBinaryPath) {
+        client.setTiltBinaryPath(settings.tiltBinaryPath);
+        console.log(`Using tilt binary override: ${settings.tiltBinaryPath}`);
+      }
       if (settings.logFilters.length > 0) {
         logStore.setLogFilters(settings.logFilters);
         setActiveLogFilterNames(settings.activeFilterNames);

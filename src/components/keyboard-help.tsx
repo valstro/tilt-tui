@@ -2,8 +2,9 @@
 
 import { TextAttributes } from "@opentui/core";
 import type { ScrollBoxRenderable } from "@opentui/core";
-import { createMemo, For } from "solid-js";
+import { createMemo, createResource, For } from "solid-js";
 import { useTheme } from "@/hooks/useTheme";
+import { useTilt } from "../context/tilt";
 import { Modal } from "./modal/modal";
 import { ModalHeader } from "./modal/modal-header";
 import { keymap } from "../keymap";
@@ -25,6 +26,10 @@ interface HelpGroup {
 
 export function KeyboardHelp(props: KeyboardHelpProps) {
   const theme = useTheme();
+  const { client } = useTilt();
+
+  // Fetch the tilt CLI version when the modal mounts (opens)
+  const [version] = createResource(() => client.getVersion());
 
   let scrollRef: ScrollBoxRenderable | undefined;
 
@@ -117,6 +122,12 @@ export function KeyboardHelp(props: KeyboardHelpProps) {
           )}
         </For>
       </scrollbox>
+
+      <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
+        <text fg={theme.textMuted}>
+          tilt {version() ?? (version.loading ? "…" : "unknown")}
+        </text>
+      </box>
     </Modal>
   );
 }

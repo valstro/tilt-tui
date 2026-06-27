@@ -13,17 +13,23 @@ import {
   TiltStartError,
 } from "./tilt/process";
 import { setGlobalRenderer, getGlobalRenderer } from "./global-renderer";
+import { loadUserSettings } from "./config/user-settings";
 
 const config = await parseCLI();
 
+// Load user settings early so the configured tilt binary override is honored
+// for process management (and the logs subcommand) before the TUI starts.
+const userSettings = await loadUserSettings();
+const tiltBinaryPath = userSettings.tiltBinaryPath;
+
 if (config.kind === "logs") {
   const { dumpLogs } = await import("./tilt/dump-logs");
-  await dumpLogs(config);
+  await dumpLogs(config, tiltBinaryPath);
   process.exit(0);
 }
 
 if (config.spawnProcess) {
-  if (await isTiltRunning(config.port)) {
+  if (await isTiltRunning(config.port, tiltBinaryPath)) {
     console.error(
       `A tilt instance is already running on port ${config.port}`,
     );
@@ -37,7 +43,7 @@ if (config.spawnProcess) {
     process.exit(1);
   }
   try {
-    await startTiltProcess(config.tiltArgs, config.port);
+    await startTiltProcess(config.tiltArgs, config.port, tiltBinaryPath);
   } catch (err) {
     if (err instanceof TiltStartError) {
       console.error(`Failed to start tilt:\n${err.message}`);

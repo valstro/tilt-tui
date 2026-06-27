@@ -27,6 +27,8 @@ const DEFAULT_PORT = 10350;
 export interface TiltClientOptions {
   host?: string;
   port?: number;
+  /** Override path to the tilt binary (otherwise discovered on PATH) */
+  tiltBinaryPath?: string;
 }
 
 export interface ResourcesUpdate {
@@ -79,19 +81,61 @@ export class TiltClient {
   private wsURL: string;
   private host: string;
   private port: number;
+  // Optional override path to the tilt binary; falls back to PATH discovery.
+  private tiltBinaryPath?: string;
+  // Tilt-Token session cookie, issued by the server when loading the root page.
+  // Required (since ~tilt v0.37) to authenticate API and WebSocket requests.
+  private sessionCookie: string | null = null;
 
   constructor(options: TiltClientOptions = {}) {
     this.host = options.host ?? DEFAULT_HOST;
     this.port = options.port ?? DEFAULT_PORT;
+    this.tiltBinaryPath = options.tiltBinaryPath;
     this.baseURL = `http://${this.host}:${this.port}`;
     this.wsURL = `ws://${this.host}:${this.port}`;
+  }
+
+  /**
+   * Set an override path to the tilt binary. Useful when the path is loaded
+   * asynchronously (e.g. from user settings) after the client is constructed.
+   */
+  setTiltBinaryPath(path: string | undefined): void {
+    this.tiltBinaryPath = path;
+  }
+
+  /**
+   * Fetch the Tilt-Token session cookie from the server's root page.
+   * Newer Tilt versions require this cookie on API and WebSocket requests.
+   * The value is cached after the first successful fetch.
+   */
+  private async getSessionCookie(): Promise<string> {
+    if (this.sessionCookie) {
+      return this.sessionCookie;
+    }
+
+    const response = await fetch(`${this.baseURL}/`);
+    if (!response.ok) {
+      throw new Error(`Failed to get session cookie: ${response.status}`);
+    }
+
+    const setCookie = response.headers.get("set-cookie");
+    const match = setCookie?.match(/Tilt-Token=([^;]+)/);
+    if (!match) {
+      throw new Error("No Tilt-Token cookie in server response");
+    }
+
+    this.sessionCookie = `Tilt-Token=${match[1]}`;
+    return this.sessionCookie;
   }
 
   /**
    * Get the websocket token for authentication
    */
   private async getWebsocketToken(): Promise<string> {
-    const response = await fetch(`${this.baseURL}/api/websocket_token`);
+    const cookie = await this.getSessionCookie();
+    const response = await fetch(`${this.baseURL}/api/websocket_token`, {
+      headers: { Cookie: cookie },
+    });
     if (!response.ok) {
       throw new Error(`Failed to get websocket token: ${response.status}`);
     }
@@ -99,12 +143,17 @@ export class TiltClient {
   }
 
   /**
-   * Get the WebSocket URL with authentication token.
-   * This is an Effection operation that fetches the token.
+   * Get the WebSocket URL with authentication token plus the session cookie
+   * header required to open the connection.
+   * This is an Effection operation that fetches both tokens.
    */
-  private *getWebSocketURL(): Operation<string> {
+  private *getWebSocketAuth(): Operation<{ url: string; cookie: string }> {
+    const cookie: string = yield* call(() => this.getSessionCookie());
     const token: string = yield* call(() => this.getWebsocketToken());
-    return `${this.wsURL}/ws/view?csrf=${encodeURIComponent(token)}`;
+    return {
+      url: `${this.wsURL}/ws/view?csrf=${encodeURIComponent(token)}`,
+      cookie,
+    };
   }
 
   /**
@@ -139,7 +188,7 @@ export class TiltClient {
    * ```
    */
   *useTiltStreams(): Operation<TiltStreams> {
-    const wsURL: string = yield* this.getWebSocketURL();
+    const { url: wsURL, cookie } = yield* this.getWebSocketAuth();
 
     return yield* resource<TiltStreams>(function* (provide) {
       // Create two signals - one for resources, one for logs
@@ -160,7 +209,16 @@ export class TiltClient {
         void
       >();
 
-      const ws = new WebSocket(wsURL);
+      // Bun's WebSocket supports a headers option (not in the DOM lib types,
+      // which win the global type when "DOM" is in tsconfig lib). Cast the
+      // constructor to Bun's signature so we can send the Tilt-Token cookie.
+      const BunWebSocket = WebSocket as unknown as new (
+        url: string,
+        options: Bun.WebSocketOptions,
+      ) => WebSocket;
+      const ws = new BunWebSocket(wsURL, {
+        headers: { Cookie: cookie },
+      });
 
       ws.onmessage = (event) => {
         try {
@@ -244,6 +302,7 @@ export class TiltClient {
       const { stdout } = await runTiltCli({
         args: ["args", "--host", this.host, "--port", String(this.port)],
         env: { EDITOR: "cat" },
+        binaryPath: this.tiltBinaryPath,
       });
 
       // tilt args are on second line of output
@@ -275,6 +334,27 @@ export class TiltClient {
   }
 
   /**
+   * Get the tilt CLI version string (e.g. "v0.35.0, built 2025-06-13").
+   * Returns null if the tilt binary is unavailable or the command fails.
+   */
+  async getVersion(): Promise<string | null> {
+    try {
+      const { stdout } = await runTiltCli({
+        args: ["version"],
+        binaryPath: this.tiltBinaryPath,
+      });
+      return stdout.trim() || null;
+    } catch (e) {
+      if (e instanceof TiltBinaryNotFoundError || e instanceof TiltCliError) {
+        console.error(e.message);
+      } else {
+        console.error("error getting tilt version", e);
+      }
+      return null;
+    }
+  }
+
+  /**
    * Trigger a resource rebuild
    */
   async triggerResource(
@@ -286,9 +366,10 @@ export class TiltClient {
       build_reason: 16,
     });
 
+    const cookie = await this.getSessionCookie();
     const response = await fetch(`${this.baseURL}/api/trigger`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body,
       signal,
     });
@@ -367,6 +448,7 @@ export class TiltClient {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          Cookie: await this.getSessionCookie(),
         },
         body: JSON.stringify(payload),
         signal,
@@ -389,7 +471,11 @@ export class TiltClient {
    */
   async checkHealth(signal?: AbortSignal): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseURL}/api/view`, { signal });
+      const cookie = await this.getSessionCookie();
+      const response = await fetch(`${this.baseURL}/api/view`, {
+        headers: { Cookie: cookie },
+        signal,
+      });
       return response.ok;
     } catch {
       return false;
@@ -411,6 +497,7 @@ export class TiltClient {
         "--port",
         String(this.port),
       ],
+      binaryPath: this.tiltBinaryPath,
     });
     const parsed = JSON.parse(stdout);
     return { items: parsed.items ?? [] };
@@ -430,6 +517,7 @@ export class TiltClient {
         "--port",
         String(this.port),
       ],
+      binaryPath: this.tiltBinaryPath,
     });
 
     const parsed = JSON.parse(stdout);

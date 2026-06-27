@@ -3,10 +3,13 @@ import { resolveTiltBinary, TILT_ENV } from "./tilt-cli";
 
 let tiltProcess: Subprocess | null = null;
 
-export async function isTiltRunning(port: number): Promise<boolean> {
+export async function isTiltRunning(
+  port: number,
+  binaryPath?: string,
+): Promise<boolean> {
   let binary: string;
   try {
-    binary = resolveTiltBinary();
+    binary = resolveTiltBinary(binaryPath);
   } catch {
     return false;
   }
@@ -66,13 +69,16 @@ export class TiltStartError extends Error {
 export async function startTiltProcess(
   tiltArgs: string[],
   port: number,
+  binaryPath?: string,
 ): Promise<void> {
-  const binary = resolveTiltBinary();
+  const binary = resolveTiltBinary(binaryPath);
   const hasPort = tiltArgs.some(
     (arg) => arg === "--port" || arg.startsWith("--port="),
   );
   const portArgs = hasPort ? [] : ["--port", String(port)];
   const args = [binary, "up", ...portArgs, ...tiltArgs];
+
+  console.log(args, TILT_ENV);
 
   const proc = Bun.spawn(args, {
     stdout: "ignore",

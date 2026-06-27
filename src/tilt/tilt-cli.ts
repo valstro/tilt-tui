@@ -19,9 +19,22 @@ export class TiltCliError extends Error {
 export const TILT_ENV = {
   TILT_DISABLE_ANALYTICS: "true",
   DO_NOT_TRACK: "true",
+  TILT_ATTACH_REUSE_CLUSTER_IMAGES: "1",
 } as const;
 
-export function resolveTiltBinary(): string {
+/**
+ * Resolve the tilt binary path. If an explicit override is provided, it is
+ * used directly (verified to exist); otherwise the binary is discovered on PATH.
+ */
+export function resolveTiltBinary(override?: string): string {
+  if (override) {
+    const resolved = Bun.which(override);
+    if (!resolved) {
+      throw new TiltBinaryNotFoundError();
+    }
+    return resolved;
+  }
+
   const binary = Bun.which("tilt");
   if (!binary) {
     throw new TiltBinaryNotFoundError();
@@ -32,6 +45,8 @@ export function resolveTiltBinary(): string {
 interface RunTiltCliOptions {
   args: string[];
   env?: Record<string, string>;
+  /** Optional override path to the tilt binary. */
+  binaryPath?: string;
 }
 
 interface TiltCliResult {
@@ -48,7 +63,7 @@ interface TiltCliResult {
 export async function runTiltCli(
   options: RunTiltCliOptions,
 ): Promise<TiltCliResult> {
-  const binary = resolveTiltBinary();
+  const binary = resolveTiltBinary(options.binaryPath);
 
   const proc = Bun.spawn([binary, ...options.args], {
     env: {

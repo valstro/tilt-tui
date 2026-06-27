@@ -17,6 +17,8 @@ export interface LogFilters {
 export interface UserSettings {
   /** Named log filters with regex patterns to ignore matching log lines */
   logFilters?: LogFilters;
+  /** Override path to the tilt binary (otherwise discovered on PATH) */
+  tiltBinaryPath?: string;
 }
 
 /**
@@ -39,6 +41,8 @@ export interface RuntimeSettings {
   logFilters: CompiledLogFilters[];
   /** Names of active log filters for display */
   activeFilterNames: string[];
+  /** Override path to the tilt binary, if configured */
+  tiltBinaryPath?: string;
 }
 
 const CONFIG_DIR = ".config/tilt-tui";
@@ -121,6 +125,7 @@ function compileSettings(settings: UserSettings): RuntimeSettings {
     raw: settings,
     logFilters,
     activeFilterNames,
+    tiltBinaryPath: settings.tiltBinaryPath,
   };
 }
 

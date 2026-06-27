@@ -4,8 +4,15 @@ import { TiltClient } from "./client";
 import LogStore from "./logstore2";
 import { logLinesToString } from "./log-utils";
 
-export async function dumpLogs(config: LogsConfig): Promise<void> {
-  const client = new TiltClient({ host: config.host, port: config.port });
+export async function dumpLogs(
+  config: LogsConfig,
+  tiltBinaryPath?: string,
+): Promise<void> {
+  const client = new TiltClient({
+    host: config.host,
+    port: config.port,
+    tiltBinaryPath,
+  });
 
   const healthy = await client.checkHealth();
   if (!healthy) {
